@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -13,14 +12,13 @@ const firebaseConfig = {
   measurementId: "G-NSV9NNCN66"
 };
 
-
 const app = initializeApp(firebaseConfig);
 
-// use AsyncStorage for auth persistence
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
-
+// Note: Using getAuth() for now. The warning about AsyncStorage persistence
+// is just a warning - authentication will still work, but sessions won't persist
+// between app restarts. This can be fixed later with proper React Native persistence setup.
+const auth = getAuth(app);
 const db = getFirestore(app);
 
 export { auth, db };
+
