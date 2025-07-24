@@ -1,13 +1,8 @@
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -20,7 +15,7 @@ import { useTheme } from '../../src/context/ThemeContext';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signup, googleSignIn, isLoading } = useAuth();
+  const { signup, isLoading } = useAuth();
   const { theme, isDarkMode } = useTheme();
   
   const [fullName, setFullName] = useState('');
@@ -31,25 +26,6 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-
-  // Animations
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {
@@ -117,44 +93,21 @@ export default function SignupScreen() {
         password,
         confirmPassword,
       });
-      router.replace('/(tabs)');
+      // Use push instead of replace to avoid navigation issues
+      router.push('/(tabs)');
     } catch (error) {
       Alert.alert('Signup Failed', error instanceof Error ? error.message : 'Please try again');
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await googleSignIn();
-      router.replace('/(tabs)');
-    } catch (error) {
-      Alert.alert('Google Sign-In Failed', error instanceof Error ? error.message : 'Please try again');
-    }
-  };
-
   return (
-    <LinearGradient
-      colors={isDarkMode ? ['#0f172a', '#1e293b'] : ['#f0f9ff', '#e0f2fe']}
-      style={styles.container}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Animated.View
-            style={[
-              styles.content,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
+        <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity
@@ -164,27 +117,27 @@ export default function SignupScreen() {
                   router.back();
                 }}
               >
-                <Text style={[styles.backButtonText, { color: theme.colors.text }]}>←</Text>
+                <Text style={styles.backButtonText}>←</Text>
               </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Create Account</Text>
+              <Text style={styles.headerTitle}>Create Account</Text>
               <View style={styles.placeholder} />
             </View>
 
             {/* Logo Section */}
             <View style={styles.logoContainer}>
-              <View style={[styles.logo, { backgroundColor: theme.colors.primary }]}>
+              <View style={styles.logo}>
                 <Text style={styles.logoText}>AI</Text>
               </View>
-              <Text style={[styles.appTitle, { color: theme.colors.text }]}>
+              <Text style={styles.appTitle}>
                 Join AI Job Interview Trainer
               </Text>
-              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.subtitle}>
                 Start your journey to interview success
               </Text>
             </View>
 
             {/* Signup Form */}
-            <BlurView intensity={20} style={[styles.formContainer, { backgroundColor: theme.colors.surface + '80' }]}>
+            <View style={styles.formContainer}>
               {/* Full Name Input */}
               <View style={styles.inputContainer}>
                 <TextInput
@@ -339,6 +292,8 @@ export default function SignupScreen() {
                 </TouchableOpacity>
               </View>
 
+
+
               {/* Signup Button */}
               <TouchableOpacity
                 style={[
@@ -365,27 +320,9 @@ export default function SignupScreen() {
                 <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
               </View>
 
-              {/* Google Sign In */}
-              <TouchableOpacity
-                style={[
-                  styles.googleButton,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-                onPress={handleGoogleSignIn}
-                disabled={isLoading}
-              >
-                <Text style={styles.googleIcon}>🔍</Text>
-                <Text style={[styles.googleButtonText, { color: theme.colors.text }]}>
-                  Continue with Google
-                </Text>
-              </TouchableOpacity>
-
               {/* Login Link */}
               <View style={styles.loginContainer}>
-                <Text style={[styles.loginText, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.loginText}>
                   Already have an account?{' '}
                 </Text>
                 <TouchableOpacity
@@ -394,25 +331,22 @@ export default function SignupScreen() {
                     router.back();
                   }}
                 >
-                  <Text style={[styles.loginLink, { color: theme.colors.primary }]}>
+                  <Text style={styles.loginLink}>
                     Sign In
                   </Text>
                 </TouchableOpacity>
               </View>
-            </BlurView>
-          </Animated.View>
+            </View>
+          </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
+    backgroundColor: '#0f172a',
   },
   scrollContent: {
     flexGrow: 1,
@@ -438,10 +372,12 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#ffffff',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#ffffff',
   },
   placeholder: {
     width: 40,
@@ -457,6 +393,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    backgroundColor: '#4f46e5',
   },
   logoText: {
     fontSize: 24,
@@ -468,20 +405,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 6,
     textAlign: 'center',
+    color: '#ffffff',
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
+    color: '#94a3b8',
   },
   formContainer: {
     padding: 24,
     borderRadius: 20,
+    backgroundColor: '#1e293b',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -495,6 +435,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+    borderColor: '#475569',
+    backgroundColor: '#334155',
+    color: '#ffffff',
   },
   eyeButton: {
     position: 'absolute',
@@ -503,13 +446,14 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     fontSize: 20,
+    color: '#94a3b8',
   },
   strengthContainer: {
     marginBottom: 16,
   },
   strengthBar: {
     height: 4,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#475569',
     borderRadius: 2,
     marginBottom: 4,
   },
@@ -520,6 +464,7 @@ const styles = StyleSheet.create({
   strengthText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#94a3b8',
   },
   signupButton: {
     height: 56,
@@ -527,6 +472,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: '#4f46e5',
   },
   signupButtonText: {
     color: '#fff',
@@ -541,27 +487,12 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
+    backgroundColor: '#475569',
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
-  },
-  googleButton: {
-    height: 56,
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  googleIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#94a3b8',
   },
   loginContainer: {
     flexDirection: 'row',
@@ -570,9 +501,11 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
+    color: '#94a3b8',
   },
   loginLink: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#4f46e5',
   },
 }); 

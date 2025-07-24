@@ -1,15 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    createUserWithEmailAndPassword,
-    User as FirebaseUser,
-    onAuthStateChanged,
-    sendPasswordResetEmail,
-    signInWithEmailAndPassword,
-    signOut
+  createUserWithEmailAndPassword,
+  User as FirebaseUser,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut
 } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { auth } from '../../firebase/firebaseConfig';
+import { auth, db } from '../../firebase/firebaseConfig';
 
 export interface User {
   id: string;
@@ -27,7 +28,7 @@ export interface AuthState {
 }
 
 export interface LoginCredentials {
-  emailOrPhone: string;
+  email: string;
   password: string;
   rememberMe: boolean;
 }
@@ -48,7 +49,6 @@ export interface AuthContextType {
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  googleSignIn: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +65,26 @@ const convertFirebaseUser = (firebaseUser: FirebaseUser): User => {
   };
 };
 
+const fetchUserFromFirestore = async (uid: string): Promise<User | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      return {
+        id: uid,
+        fullName: data.fullName || 'User',
+        email: data.email || '',
+        phone: data.phone || undefined,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        profilePicture: data.profilePicture || undefined,
+      };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,10 +92,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Listen for Firebase auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userData = convertFirebaseUser(firebaseUser);
-        setUser(userData);
+        // Fetch user from Firestore for fullName, etc.
+        const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
+        if (userFromDb) {
+          setUser(userFromDb);
+        } else {
+          const userData = convertFirebaseUser(firebaseUser);
+          setUser(userData);
+        }
         setIsAuthenticated(true);
       } else {
         setUser(null);
@@ -91,15 +117,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
-      // Use email for Firebase authentication
-      const email = credentials.emailOrPhone.includes('@') 
-        ? credentials.emailOrPhone 
-        : `${credentials.emailOrPhone}@example.com`; // Fallback for phone numbers
+      // Validate that input is an email address
+      if (!credentials.email.includes('@')) {
+        throw new Error('Please enter a valid email address.');
+      }
       
-      const userCredential = await signInWithEmailAndPassword(auth, email, credentials.password);
+      const userCredential = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       const firebaseUser = userCredential.user;
       
-      const userData = convertFirebaseUser(firebaseUser);
+      // Fetch user from Firestore for fullName, etc.
+      const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
+      let userData: User;
+      if (userFromDb) {
+        userData = userFromDb;
+      } else {
+        userData = convertFirebaseUser(firebaseUser);
+      }
       setUser(userData);
       setIsAuthenticated(true);
       
@@ -113,6 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorMessage = 'No account found with this email address.';
       } else if (error.code === 'auth/wrong-password') {
         errorMessage = 'Incorrect password.';
+      } else if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Invalid email address.';
       } else if (error.code === 'auth/too-many-requests') {
@@ -128,31 +163,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (credentials: SignupCredentials) => {
     try {
       setIsLoading(true);
-      
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
         credentials.email, 
         credentials.password
       );
-      
       const firebaseUser = userCredential.user;
-      
-      // Update display name if provided
-      if (credentials.fullName) {
-        // Note: updateProfile requires additional setup for React Native
-        // For now, we'll store the full name in our user object
-      }
-      
       const userData = convertFirebaseUser(firebaseUser);
-      // Override the display name with the provided full name
       userData.fullName = credentials.fullName;
-      
+      // Store user details in Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        fullName: credentials.fullName,
+        email: credentials.email,
+        phone: credentials.phone || null,
+        createdAt: new Date().toISOString(),
+        profilePicture: firebaseUser.photoURL || null,
+      });
       setUser(userData);
       setIsAuthenticated(true);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
     } catch (error: any) {
       let errorMessage = 'Signup failed. Please try again.';
-      
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'An account with this email already exists.';
       } else if (error.code === 'auth/invalid-email') {
@@ -160,7 +191,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       }
-      
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -202,22 +232,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const googleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      // For now, we'll show an alert that Google Sign-In needs to be implemented
-      // This requires additional setup with expo-auth-session and Google OAuth
-      Alert.alert(
-        'Google Sign-In', 
-        'Google Sign-In will be implemented with expo-auth-session. For now, please use email/password authentication.'
-      );
-    } catch (error) {
-      throw new Error('Google sign-in is not yet implemented.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const value: AuthContextType = {
     user,
     isLoading,
@@ -226,7 +240,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signup,
     logout,
     forgotPassword,
-    googleSignIn,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

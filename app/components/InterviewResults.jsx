@@ -13,25 +13,32 @@ const InterviewResults = ({
   questions, 
   userAnswers, 
   onBackToDomains,
-  onRetakeInterview 
+  onRetakeInterview,
+  questionType
 }) => {
   const { score, totalQuestions, answeredQuestions, correctAnswers } = useMemo(() => {
     const total = questions.length;
     const answered = Object.keys(userAnswers).length;
-    const correct = questions.reduce((count, question, index) => {
-      const userAnswer = userAnswers[index] || '';
-      // Simple scoring - if user provided an answer, consider it correct
-      // You can implement more sophisticated scoring logic here
-      return count + (userAnswer.trim().length > 0 ? 1 : 0);
-    }, 0);
-    
+    let correct = 0;
+    if (questionType === 'quiz') {
+      correct = questions.reduce((count, question, index) => {
+        const userAnswer = userAnswers[index] || '';
+        // For quiz, compare to correct answer
+        return count + (userAnswer === question.options?.["ABCD".indexOf(question.correct)] ? 1 : 0);
+      }, 0);
+    } else {
+      correct = questions.reduce((count, question, index) => {
+        const userAnswer = userAnswers[index] || '';
+        return count + (userAnswer.trim().length > 0 ? 1 : 0);
+      }, 0);
+    }
     return {
       score: Math.round((correct / total) * 100),
       totalQuestions: total,
       answeredQuestions: answered,
       correctAnswers: correct
     };
-  }, [questions, userAnswers]);
+  }, [questions, userAnswers, questionType]);
 
   const getScoreColor = (score) => {
     if (score >= 80) return '#4CAF50';
@@ -49,7 +56,7 @@ const InterviewResults = ({
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>Interview Practice Results</Text>
-        <Text style={styles.subtitle}>{domain.name}</Text>
+        <Text style={styles.subtitle}>{domain?.name || 'Domain'}</Text>
       </View>
 
       {/* Score Card */}
@@ -84,26 +91,45 @@ const InterviewResults = ({
         {questions.map((question, index) => {
           const userAnswer = userAnswers[index] || '';
           const hasAnswered = userAnswer.trim().length > 0;
-          
+          const isQuiz = questionType === 'quiz';
+          let isCorrect = false;
+          let correctAnswer = '';
+          if (isQuiz) {
+            const correctIdx = "ABCD".indexOf(question.correct);
+            correctAnswer = question.options?.[correctIdx] || '';
+            isCorrect = userAnswer === correctAnswer;
+          } else {
+            isCorrect = hasAnswered;
+          }
           return (
             <View key={index} style={styles.questionResult}>
               <View style={styles.questionHeader}>
                 <Text style={styles.questionNumber}>Q{index + 1}</Text>
                 <View style={[
                   styles.statusIndicator, 
-                  { backgroundColor: hasAnswered ? '#4CAF50' : '#F44336' }
+                  { backgroundColor: isCorrect ? '#4CAF50' : '#F44336' }
                 ]}>
                   <Text style={styles.statusText}>
-                    {hasAnswered ? '✓' : '✗'}
+                    {isCorrect ? '✓' : '✗'}
                   </Text>
                 </View>
               </View>
-              
               <Text style={styles.questionText} numberOfLines={2}>
                 {question.question}
               </Text>
-              
-              {hasAnswered && (
+              {isQuiz && (
+                <View style={styles.answerSection}>
+                  <Text style={styles.answerLabel}>Your Answer:</Text>
+                  <Text style={styles.userAnswer} numberOfLines={3}>
+                    {userAnswer}
+                  </Text>
+                  <Text style={styles.answerLabel}>Correct Answer:</Text>
+                  <Text style={styles.userAnswer} numberOfLines={3}>
+                    {correctAnswer}
+                  </Text>
+                </View>
+              )}
+              {!isQuiz && hasAnswered && (
                 <View style={styles.answerSection}>
                   <Text style={styles.answerLabel}>Your Answer:</Text>
                   <Text style={styles.userAnswer} numberOfLines={3}>
@@ -111,13 +137,14 @@ const InterviewResults = ({
                   </Text>
                 </View>
               )}
-              
-              <View style={styles.modelAnswerSection}>
-                <Text style={styles.answerLabel}>Sample Answer:</Text>
-                <Text style={styles.modelAnswer} numberOfLines={3}>
-                  {question.answer}
-                </Text>
-              </View>
+              {!isQuiz && (
+                <View style={styles.modelAnswerSection}>
+                  <Text style={styles.answerLabel}>Sample Answer:</Text>
+                  <Text style={styles.modelAnswer} numberOfLines={3}>
+                    {question.answer}
+                  </Text>
+                </View>
+              )}
             </View>
           );
         })}
@@ -134,7 +161,7 @@ const InterviewResults = ({
         
         <TouchableOpacity 
           style={styles.backButton} 
-          onPress={onBackToDomains}
+          onPress={onBackToDomains ? onBackToDomains : onRetakeInterview}
         >
           <Text style={styles.backButtonText}>Back to Domains</Text>
         </TouchableOpacity>
