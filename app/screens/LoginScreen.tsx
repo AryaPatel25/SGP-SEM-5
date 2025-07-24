@@ -1,19 +1,16 @@
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
     Alert,
     Animated,
     Dimensions,
-    KeyboardAvoidingView,
-    Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -22,7 +19,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, googleSignIn, isLoading } = useAuth();
+  const { login, isLoading } = useAuth();
   const { theme, isDarkMode } = useTheme();
   
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -58,28 +55,29 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleLogin = async () => {
     if (!emailOrPhone || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    if (!validateEmail(emailOrPhone)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await login({ emailOrPhone, password, rememberMe });
-      router.replace('/(tabs)');
+      await login({ email: emailOrPhone, password, rememberMe });
+      // Use push instead of replace to avoid navigation issues
+      router.push('/(tabs)');
     } catch (error) {
       Alert.alert('Login Failed', error instanceof Error ? error.message : 'Please try again');
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await googleSignIn();
-      router.replace('/(tabs)');
-    } catch (error) {
-      Alert.alert('Google Sign-In Failed', error instanceof Error ? error.message : 'Please try again');
     }
   };
 
@@ -88,65 +86,43 @@ export default function LoginScreen() {
     Alert.alert('Forgot Password', 'Password reset functionality will be implemented here');
   };
 
-  return (
-    <LinearGradient
-      colors={isDarkMode ? ['#0f172a', '#1e293b'] : ['#f0f9ff', '#e0f2fe']}
-      style={styles.container}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+  useEffect(() => {
+    // No Google sign-in logic to run here anymore
+  }, []);
+
+    return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <View style={styles.content}>
           {/* Logo Section */}
-          <Animated.View
-            style={[
-              styles.logoContainer,
-              {
-                transform: [{ scale: logoScale }],
-              },
-            ]}
-          >
-            <View style={[styles.logo, { backgroundColor: theme.colors.primary }]}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logo}>
               <Text style={styles.logoText}>AI</Text>
             </View>
-            <Text style={[styles.appTitle, { color: theme.colors.text }]}>
+            <Text style={styles.appTitle}>
               Job Interview Trainer
             </Text>
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            <Text style={styles.subtitle}>
               Master your interview skills with AI
             </Text>
-          </Animated.View>
+          </View>
 
           {/* Login Form */}
-          <BlurView intensity={20} style={[styles.formContainer, { backgroundColor: theme.colors.surface + '80' }]}>
-            <Text style={[styles.formTitle, { color: theme.colors.text }]}>Welcome Back</Text>
+          <View style={styles.formContainer}>
+            <Text style={styles.formTitle}>Welcome Back</Text>
             
-            {/* Email/Phone Input */}
+            {/* Email Input */}
             <View style={styles.inputContainer}>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: emailFocused ? theme.colors.primary : theme.colors.border,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.background,
-                  },
-                ]}
-                placeholder="Email or Phone Number"
-                placeholderTextColor={theme.colors.textSecondary}
+                style={styles.input}
+                placeholder="Email Address"
+                placeholderTextColor="#666"
                 value={emailOrPhone}
                 onChangeText={setEmailOrPhone}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -156,32 +132,20 @@ export default function LoginScreen() {
             {/* Password Input */}
             <View style={styles.inputContainer}>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: passwordFocused ? theme.colors.primary : theme.colors.border,
-                    color: theme.colors.text,
-                    backgroundColor: theme.colors.background,
-                  },
-                ]}
+                style={styles.input}
                 placeholder="Password"
-                placeholderTextColor={theme.colors.textSecondary}
+                placeholderTextColor="#666"
                 value={password}
                 onChangeText={setPassword}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
-                onPress={() => {
-                  setShowPassword(!showPassword);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
+                onPress={() => setShowPassword(!showPassword)}
               >
-                <Text style={[styles.eyeIcon, { color: theme.colors.textSecondary }]}>
+                <Text style={styles.eyeIcon}>
                   {showPassword ? '👁️' : '👁️‍🗨️'}
                 </Text>
               </TouchableOpacity>
@@ -199,19 +163,18 @@ export default function LoginScreen() {
                 <View style={[
                   styles.checkbox,
                   {
-                    backgroundColor: rememberMe ? theme.colors.primary : 'transparent',
-                    borderColor: theme.colors.border,
+                    backgroundColor: rememberMe ? '#4f46e5' : 'transparent',
                   },
                 ]}>
                   {rememberMe && <Text style={styles.checkmark}>✓</Text>}
                 </View>
-                <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
+                <Text style={styles.checkboxLabel}>
                   Remember Me
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={handleForgotPassword}>
-                <Text style={[styles.forgotPassword, { color: theme.colors.primary }]}>
+                <Text style={styles.forgotPassword}>
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
@@ -222,7 +185,6 @@ export default function LoginScreen() {
               style={[
                 styles.loginButton,
                 {
-                  backgroundColor: theme.colors.primary,
                   opacity: isLoading ? 0.7 : 1,
                 },
               ]}
@@ -236,34 +198,16 @@ export default function LoginScreen() {
 
             {/* Divider */}
             <View style={styles.dividerContainer}>
-              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-              <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>
                 or
               </Text>
-              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+              <View style={styles.divider} />
             </View>
-
-            {/* Google Sign In */}
-            <TouchableOpacity
-              style={[
-                styles.googleButton,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-              onPress={handleGoogleSignIn}
-              disabled={isLoading}
-            >
-              <Text style={styles.googleIcon}>🔍</Text>
-              <Text style={[styles.googleButtonText, { color: theme.colors.text }]}>
-                Continue with Google
-              </Text>
-            </TouchableOpacity>
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
-              <Text style={[styles.signupText, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.signupText}>
                 Don't have an account?{' '}
               </Text>
               <TouchableOpacity
@@ -272,24 +216,26 @@ export default function LoginScreen() {
                   router.push('/signup' as any);
                 }}
               >
-                <Text style={[styles.signupLink, { color: theme.colors.primary }]}>
+                <Text style={styles.signupLink}>
                   Sign Up
                 </Text>
               </TouchableOpacity>
             </View>
-          </BlurView>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+
+          </View>
+        </View>
+        </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0f172a',
   },
-  keyboardView: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
@@ -308,6 +254,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: '#4f46e5',
   },
   logoText: {
     fontSize: 32,
@@ -319,20 +266,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
+    color: '#ffffff',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
+    color: '#94a3b8',
   },
   formContainer: {
     padding: 24,
     borderRadius: 20,
+    backgroundColor: '#1e293b',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -341,6 +291,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 24,
     textAlign: 'center',
+    color: '#ffffff',
   },
   inputContainer: {
     marginBottom: 16,
@@ -352,6 +303,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+    borderColor: '#475569',
+    backgroundColor: '#334155',
+    color: '#ffffff',
   },
   eyeButton: {
     position: 'absolute',
@@ -360,6 +314,7 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     fontSize: 20,
+    color: '#94a3b8',
   },
   optionsContainer: {
     flexDirection: 'row',
@@ -379,6 +334,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: '#475569',
   },
   checkmark: {
     color: '#fff',
@@ -387,10 +343,12 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 14,
+    color: '#ffffff',
   },
   forgotPassword: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#4f46e5',
   },
   loginButton: {
     height: 56,
@@ -398,6 +356,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: '#4f46e5',
   },
   loginButtonText: {
     color: '#fff',
@@ -412,27 +371,12 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
+    backgroundColor: '#475569',
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
-  },
-  googleButton: {
-    height: 56,
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  googleIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#94a3b8',
   },
   signupContainer: {
     flexDirection: 'row',
@@ -441,9 +385,11 @@ const styles = StyleSheet.create({
   },
   signupText: {
     fontSize: 14,
+    color: '#94a3b8',
   },
   signupLink: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#4f46e5',
   },
 }); 

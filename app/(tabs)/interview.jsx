@@ -2,20 +2,23 @@
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    FlatList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { db } from "../../firebase/firebaseConfig";
+import DomainCard from "../components/DomainCard";
 import InterviewResults from "../components/InterviewResults";
+import LoadingSpinner from "../components/LoadingSpinner";
+import NavigationButtons from "../components/NavigationButtons";
+import QuestionCard from "../components/QuestionCard";
+import QuizQuestionCard from "../components/QuizQuestionCard";
 
 // Custom hook for managing interview state
 const useInterviewState = () => {
@@ -29,8 +32,10 @@ const useInterviewState = () => {
   const [userAnswers, setUserAnswers] = useState({});
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [questionType, setQuestionType] = useState('descriptive'); // 'descriptive' or 'quiz'
+  const [mode, setMode] = useState('normal'); // 'normal' or 'ai'
 
-  const resetState = useCallback(() => {
+  const resetState = () => {
     setSelectedDomain(null);
     setQuestions([]);
     setCurrentQuestionIndex(0);
@@ -38,7 +43,7 @@ const useInterviewState = () => {
     setUserAnswers({});
     setError(null);
     setShowResults(false);
-  }, []);
+  };
 
   return {
     domains,
@@ -62,6 +67,10 @@ const useInterviewState = () => {
     showResults,
     setShowResults,
     resetState,
+    questionType,
+    setQuestionType,
+    mode,
+    setMode,
   };
 };
 
@@ -70,7 +79,7 @@ const useAnimations = () => {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
-  const animateIn = useCallback(() => {
+  const animateIn = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -83,9 +92,9 @@ const useAnimations = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  };
 
-  const animateOut = useCallback(() => {
+  const animateOut = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -98,43 +107,14 @@ const useAnimations = () => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  };
 
   return { fadeAnim, slideAnim, animateIn, animateOut };
 };
 
-// Loading Component
-const LoadingSpinner = ({ message = "Loading..." }) => (
-  <View style={styles.centered}>
-    <ActivityIndicator size="large" color="#4CAF50" />
-    <Text style={styles.loadingText}>{message}</Text>
-  </View>
-);
-
-// Domain Card Component
-const DomainCard = React.memo(({ domain, onPress, style }) => {
-  const handlePress = useCallback(() => {
-    onPress(domain);
-  }, [domain, onPress]);
-
-  return (
-    <TouchableOpacity style={[styles.domainCard, style]} onPress={handlePress}>
-      <Text style={styles.domainTitle}>{domain.name}</Text>
-      <Text style={styles.domainDescription} numberOfLines={2}>
-        {domain.description || "No description available"}
-      </Text>
-      <View style={styles.domainMeta}>
-        <Text style={styles.domainQuestionCount}>
-          {domain.questionCount || 0} questions
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
 // Progress Indicator Component
 const ProgressIndicator = ({ current, total }) => {
-  const progress = useMemo(() => (current / total) * 100, [current, total]);
+  const progress = (current / total) * 100;
 
   return (
     <View style={styles.progressContainer}>
@@ -147,119 +127,6 @@ const ProgressIndicator = ({ current, total }) => {
     </View>
   );
 };
-
-// Question Component
-const QuestionCard = React.memo(({ 
-  question, 
-  index, 
-  total, 
-  userAnswer, 
-  onAnswerChange, 
-  showAnswer, 
-  onToggleAnswer 
-}) => {
-  const handleAnswerChange = useCallback((text) => {
-    onAnswerChange(index, text);
-  }, [index, onAnswerChange]);
-
-  return (
-    <Animated.View style={styles.questionCard}>
-      <View style={styles.questionHeader}>
-        <Text style={styles.questionNumber}>Question {index + 1}</Text>
-        <Text style={styles.questionCount}>{index + 1} / {total}</Text>
-      </View>
-      
-      <Text style={styles.questionText}>{question.question}</Text>
-
-      <TextInput
-        style={styles.textInput}
-        multiline
-        placeholder="Write your answer here..."
-        placeholderTextColor="#666"
-        value={userAnswer}
-        onChangeText={handleAnswerChange}
-        textAlignVertical="top"
-        accessibilityLabel={`Answer input for question ${index + 1}`}
-      />
-
-      <TouchableOpacity
-        style={styles.showAnswerButton}
-        onPress={onToggleAnswer}
-        accessibilityRole="button"
-        accessibilityLabel={showAnswer ? "Hide answer" : "Show answer"}
-      >
-        <Text style={styles.showAnswerButtonText}>
-          {showAnswer ? "Hide Answer" : "Show Answer"}
-        </Text>
-      </TouchableOpacity>
-
-      {showAnswer && (
-        <Animated.View style={styles.answerContainer}>
-          <Text style={styles.answerLabel}>Model Answer:</Text>
-          <Text style={styles.answerText}>{question.answer}</Text>
-        </Animated.View>
-      )}
-    </Animated.View>
-  );
-});
-
-// Navigation Component
-const NavigationButtons = React.memo(({ 
-  currentIndex, 
-  total, 
-  onPrev, 
-  onNext, 
-  onBack,
-  onSubmit 
-}) => {
-  const isFirst = currentIndex === 0;
-  const isLast = currentIndex === total - 1;
-
-  return (
-    <View style={styles.navigationContainer}>
-      <View style={styles.navigationButtons}>
-        <TouchableOpacity
-          style={[styles.navButton, isFirst && styles.disabledButton]}
-          onPress={onPrev}
-          disabled={isFirst}
-          accessibilityRole="button"
-          accessibilityLabel="Previous question"
-        >
-          <Text style={styles.navButtonText}>Previous</Text>
-        </TouchableOpacity>
-
-        {isLast ? (
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={onSubmit}
-            accessibilityRole="button"
-            accessibilityLabel="Submit interview practice"
-          >
-            <Text style={styles.submitButtonText}>Submit Practice</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={onNext}
-            accessibilityRole="button"
-            accessibilityLabel="Next question"
-          >
-            <Text style={styles.navButtonText}>Next</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel="Back to domains"
-      >
-        <Text style={styles.backButtonText}>Back to Domains</Text>
-      </TouchableOpacity>
-    </View>
-  );
-});
 
 const InterviewScreen = () => {
   const {
@@ -284,25 +151,40 @@ const InterviewScreen = () => {
     showResults,
     setShowResults,
     resetState,
+    questionType,
+    setQuestionType,
+    mode,
+    setMode,
   } = useInterviewState();
 
   const { fadeAnim, slideAnim, animateIn, animateOut } = useAnimations();
 
+  const [showQuestionCountInput, setShowQuestionCountInput] = useState(false);
+  const [pendingDomain, setPendingDomain] = useState(null);
+  const [questionCount, setQuestionCount] = useState('5'); // default
+
   // Memoized values
-  const currentQuestion = useMemo(() => 
-    questions[currentQuestionIndex] || null, 
+  const currentQuestion = useMemo(() =>
+    questions[currentQuestionIndex] || null,
     [questions, currentQuestionIndex]
   );
 
-  const currentUserAnswer = useMemo(() => 
-    userAnswers[currentQuestionIndex] || "", 
+  const currentUserAnswer = useMemo(() =>
+    userAnswers[currentQuestionIndex] || "",
     [userAnswers, currentQuestionIndex]
   );
 
-  const progressPercentage = useMemo(() => 
-    questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0, 
-    [currentQuestionIndex, questions.length]
-  );
+  // Filter domains based on selected question type
+  const filteredDomains = useMemo(() => {
+    if (mode === 'ai') {
+      return domains; // Show all domains in AI mode
+    }
+    if (questionType === 'quiz') {
+      return domains.filter(domain => Array.isArray(domain.quizQuestions) && domain.quizQuestions.length > 0);
+    } else {
+      return domains.filter(domain => Array.isArray(domain.descriptiveQuestions) && domain.descriptiveQuestions.length > 0);
+    }
+  }, [domains, questionType, mode]);
 
   // Fetch domains on mount
   useEffect(() => {
@@ -322,7 +204,6 @@ const InterviewScreen = () => {
         setLoading(false);
       }
     };
-
     fetchDomains();
   }, [setDomains, setLoading, setError]);
 
@@ -332,7 +213,6 @@ const InterviewScreen = () => {
       Alert.alert("Error", "Invalid domain selected");
       return;
     }
-
     try {
       setError(null);
       setSelectedDomain(domain);
@@ -341,17 +221,19 @@ const InterviewScreen = () => {
       setCurrentQuestionIndex(0);
       setShowAnswer(false);
       setUserAnswers({});
-
       const docRef = doc(db, "interview_domains", domain.id);
       const docSnap = await getDoc(docRef);
-
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const questionsData = data.questions || [];
+        let questionsData = [];
+        if (questionType === 'quiz') {
+          questionsData = data.quizQuestions || [];
+        } else {
+          questionsData = data.descriptiveQuestions || [];
+        }
         setQuestions(questionsData);
-        
         if (questionsData.length === 0) {
-          setError("No questions found for this domain.");
+          setError("No questions found for this domain and type.");
         }
       } else {
         setError("Domain not found.");
@@ -362,7 +244,57 @@ const InterviewScreen = () => {
     } finally {
       setQuestionsLoading(false);
     }
-  }, [setSelectedDomain, setQuestions, setQuestionsLoading, setCurrentQuestionIndex, setShowAnswer, setUserAnswers, setError]);
+  }, [setSelectedDomain, setQuestions, setQuestionsLoading, setCurrentQuestionIndex, setShowAnswer, setUserAnswers, setError, questionType]);
+
+  const generateAIQuestions = async (domain, count) => {
+    setSelectedDomain(domain);
+    setQuestions([]);
+    setQuestionsLoading(true);
+    setCurrentQuestionIndex(0);
+    setShowAnswer(false);
+    setUserAnswers({});
+    setError(null);
+
+    try {
+      const response = await fetch('http://10.70.32.90:5000/generate-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: '',
+          questionType,
+          domain,
+          count
+        }),
+      });
+      const data = await response.json();
+      if (data.questions && data.questions.length > 0) {
+        setQuestions(data.questions);
+      } else {
+        setError('No questions generated');
+      }
+    } catch (err) {
+      setError('Failed to generate question');
+    }
+    setQuestionsLoading(false);
+  };
+
+  // Refactored domain click handler
+  const handleDomainClick = useCallback((domain) => {
+    if (mode === 'ai') {
+      setPendingDomain(domain);
+      setShowQuestionCountInput(true);
+    } else {
+      setSelectedDomain(domain);
+      setQuestions([]);
+      setQuestionsLoading(true);
+      setCurrentQuestionIndex(0);
+      setShowAnswer(false);
+      setUserAnswers({});
+      setError(null);
+      fetchQuestions(domain);
+      setQuestionsLoading(false);
+    }
+  }, [mode, fetchQuestions, setSelectedDomain, setQuestions, setQuestionsLoading, setCurrentQuestionIndex, setShowAnswer, setUserAnswers, setError]);
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
@@ -408,12 +340,13 @@ const InterviewScreen = () => {
 
   const handleRetakeInterview = useCallback(() => {
     setShowResults(false);
-    setCurrentQuestionIndex(0);
-    setShowAnswer(false);
-    setUserAnswers({});
+    setTimeout(() => {
+      setCurrentQuestionIndex(0);
+      setShowAnswer(false);
+      setUserAnswers({});
+    }, 0);
   }, [setShowResults, setCurrentQuestionIndex, setShowAnswer, setUserAnswers]);
 
-  // Start animation when component mounts or questions change
   useEffect(() => {
     if (questions.length > 0) {
       animateIn();
@@ -436,60 +369,132 @@ const InterviewScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      {!selectedDomain ? (
-        <FlatList
-          data={domains}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.domainList}
-          columnWrapperStyle={styles.domainRow}
-          renderItem={({ item }) => (
-            <DomainCard domain={item} onPress={fetchQuestions} />
-          )}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : showResults ? (
-        <InterviewResults
-          domain={selectedDomain}
-          questions={questions}
-          userAnswers={userAnswers}
-          onBackToDomains={handleBackToDomains}
-          onRetakeInterview={handleRetakeInterview}
-        />
-      ) : (
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
+    <View style={{ flex: 1, backgroundColor: '#18181b' }}>
+      {/* Modal for question count input */}
+      {showQuestionCountInput && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>How many questions?</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="number-pad"
+              value={questionCount}
+              onChangeText={setQuestionCount}
+              placeholder="Enter number"
+              placeholderTextColor="#888"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowQuestionCountInput(false);
+                  setPendingDomain(null);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={async () => {
+                  setShowQuestionCountInput(false);
+                  if (pendingDomain) {
+                    await generateAIQuestions(pendingDomain, parseInt(questionCount, 10) || 5);
+                    setPendingDomain(null);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>Generate</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+      <Text style={styles.pageTitle}>Interview Practice</Text>
+      <View style={styles.divider} />
+      {/* Mode Selector */}
+      <View style={styles.typeSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.typeButton, mode === 'normal' && styles.typeButtonActive]}
+          onPress={() => { resetState(); setMode('normal'); }}
         >
-          <Text style={styles.questionHeader}>
-            {selectedDomain.name} Interview
-          </Text>
-
+          <Text style={[styles.typeButtonText, mode === 'normal' && styles.typeButtonTextActive]}>Normal</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.typeButton, mode === 'ai' && styles.typeButtonActive]}
+          onPress={() => { resetState(); setMode('ai'); }}
+        >
+          <Text style={[styles.typeButtonText, mode === 'ai' && styles.typeButtonTextActive]}>AI Generate</Text>
+        </TouchableOpacity>
+      </View>
+      {/* Question Type Selector */}
+      <View style={styles.typeSelectorContainer}>
+        <TouchableOpacity
+          style={[styles.typeButton, questionType === 'descriptive' && styles.typeButtonActive]}
+          onPress={() => {
+            resetState();
+            setQuestionType('descriptive');
+          }}
+        >
+          <Text style={[styles.typeButtonText, questionType === 'descriptive' && styles.typeButtonTextActive]}>Descriptive</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.typeButton, questionType === 'quiz' && styles.typeButtonActive]}
+          onPress={() => {
+            resetState();
+            setQuestionType('quiz');
+          }}
+        >
+          <Text style={[styles.typeButtonText, questionType === 'quiz' && styles.typeButtonTextActive]}>Quiz</Text>
+        </TouchableOpacity>
+      </View>
+      {/* Domain selection */}
+      {!selectedDomain && (
+        <>
+          <Text style={styles.sectionHeader}>Select a Domain</Text>
+          {filteredDomains.length === 0 ? (
+            <Text style={styles.noQuestions}>No domains available. Please add some!</Text>
+          ) : (
+            <FlatList
+              style={styles.domainList}
+              data={filteredDomains}
+              renderItem={({ item }) => (
+                <DomainCard
+                  domain={item}
+                  onPress={() => handleDomainClick(item)}
+                  style={styles.domainCard}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              contentContainerStyle={styles.domainRow}
+            />
+          )}
+        </>
+      )}
+      {selectedDomain && (
+        <>
           {questionsLoading ? (
             <LoadingSpinner message="Loading questions..." />
-          ) : error ? (
-            <View style={styles.centered}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : questions.length === 0 ? (
-            <Text style={styles.noQuestions}>No questions found.</Text>
+          ) : showResults ? (
+            <InterviewResults
+              questions={questions}
+              userAnswers={userAnswers}
+              onRetake={handleRetakeInterview}
+              domain={selectedDomain}
+              onBackToDomains={handleBackToDomains}
+              questionType={questionType}
+            />
           ) : (
-            <>
-              <ProgressIndicator 
-                current={currentQuestionIndex + 1} 
-                total={questions.length} 
-              />
-              
-              <Animated.View
-                style={[
-                  styles.questionContainer,
-                  {
-                    opacity: fadeAnim,
-                    transform: [{ translateY: slideAnim }],
-                  },
-                ]}
-              >
+            <View style={styles.questionContainer}>
+              {questionType === 'quiz' ? (
+                <QuizQuestionCard
+                  question={currentQuestion}
+                  index={currentQuestionIndex}
+                  total={questions.length}
+                  userAnswer={currentUserAnswer}
+                  onAnswerChange={handleAnswerChange}
+                />
+              ) : (
                 <QuestionCard
                   question={currentQuestion}
                   index={currentQuestionIndex}
@@ -499,8 +504,7 @@ const InterviewScreen = () => {
                   showAnswer={showAnswer}
                   onToggleAnswer={handleToggleAnswer}
                 />
-              </Animated.View>
-
+              )}
               <NavigationButtons
                 currentIndex={currentQuestionIndex}
                 total={questions.length}
@@ -509,9 +513,9 @@ const InterviewScreen = () => {
                 onBack={handleBackToDomains}
                 onSubmit={handleSubmitInterview}
               />
-            </>
+            </View>
           )}
-        </ScrollView>
+        </>
       )}
     </View>
   );
@@ -522,103 +526,103 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#18181b",
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 0,
   },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: "#aaa",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#ff6b6b",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#4f46e5",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  retryButtonText: {
+  pageTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
     color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
+    textAlign: "center",
+    marginTop: 32,
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  divider: {
+    height: 2,
+    backgroundColor: "#334155",
+    marginHorizontal: 32,
+    marginBottom: 16,
+    borderRadius: 2,
   },
   domainList: {
-    paddingBottom: 20,
+    marginTop: 8,
+    marginBottom: 24,
   },
   domainRow: {
     justifyContent: "space-between",
     marginBottom: 16,
+    gap: 16,
   },
   domainCard: {
-    width: (width - 48) / 2,
-    backgroundColor: "#4f46e5",
-    padding: 16,
-    borderRadius: 16,
+    flex: 1,
+    minWidth: 150,
+    margin: 8,
+    backgroundColor: "#23272e",
+    padding: 20,
+    borderRadius: 18,
     shadowColor: "#000",
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    elevation: 4,
-    minHeight: 120,
+    elevation: 3,
+    minHeight: 130,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  domainCardActive: {
+    transform: [{ scale: 1.04 }],
+    backgroundColor: "#38bdf8",
   },
   domainTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "bold",
     color: "#fff",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   domainDescription: {
     fontSize: 13,
-    color: "#ccc",
+    color: "#a3a3a3",
     lineHeight: 18,
-    flex: 1,
+    marginBottom: 8,
   },
   domainMeta: {
-    marginTop: 8,
+    marginTop: 4,
   },
   domainQuestionCount: {
     fontSize: 12,
-    color: "#aaa",
+    color: "#38bdf8",
     fontWeight: "500",
   },
-  questionHeader: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 20,
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#38bdf8",
+    marginBottom: 8,
+    marginLeft: 4,
   },
   progressContainer: {
     marginBottom: 20,
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: "#333",
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: "#334155",
+    borderRadius: 4,
     overflow: "hidden",
     marginBottom: 8,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#4CAF50",
-    borderRadius: 3,
+    backgroundColor: "#38bdf8",
+    borderRadius: 4,
   },
   progressText: {
-    color: "#aaa",
-    fontSize: 14,
+    color: "#a3a3a3",
+    fontSize: 15,
     textAlign: "center",
+    fontWeight: "500",
   },
   scrollContainer: {
     paddingBottom: 40,
@@ -627,13 +631,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   questionCard: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "#23272e",
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 18,
     shadowColor: "#000",
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
   questionHeader: {
     flexDirection: "row",
@@ -644,11 +648,11 @@ const styles = StyleSheet.create({
   questionNumber: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4CAF50",
+    color: "#38bdf8",
   },
   questionCount: {
     fontSize: 14,
-    color: "#666",
+    color: "#a3a3a3",
   },
   questionText: {
     fontSize: 18,
@@ -658,7 +662,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   textInput: {
-    backgroundColor: "#2c2c2c",
+    backgroundColor: "#18181b",
     color: "#fff",
     padding: 16,
     borderRadius: 12,
@@ -666,37 +670,41 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontSize: 16,
     lineHeight: 22,
-    borderWidth: 1,
-    borderColor: "#444",
+    borderWidth: 1.5,
+    borderColor: "#334155",
   },
   showAnswerButton: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#38bdf8",
     marginTop: 16,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
+    shadowColor: "#38bdf8",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   showAnswerButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#18181b",
+    fontWeight: "700",
     fontSize: 16,
   },
   answerContainer: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#18181b",
     borderRadius: 10,
     borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
+    borderLeftColor: "#38bdf8",
   },
   answerLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4CAF50",
+    color: "#38bdf8",
     marginBottom: 8,
   },
   answerText: {
-    color: "#ccc",
+    color: "#a3a3a3",
     fontSize: 15,
     lineHeight: 22,
   },
@@ -710,14 +718,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navButton: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#38bdf8",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: "center",
     flex: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
+    shadowColor: "#38bdf8",
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -726,47 +734,153 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   navButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#18181b",
+    fontWeight: "700",
     fontSize: 16,
   },
   submitButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#0ea5e9",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: "center",
     flex: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
+    shadowColor: "#0ea5e9",
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   submitButtonText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 16,
   },
   backButton: {
-    backgroundColor: "#666",
+    backgroundColor: "#23272e",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
   },
   backButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#38bdf8",
+    fontWeight: "700",
     fontSize: 16,
   },
   noQuestions: {
-    color: "#aaa",
+    color: "#a3a3a3",
     fontSize: 16,
     textAlign: "center",
     marginTop: 40,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#18181b',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#38bdf8',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: '#18181b',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  typeSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  typeButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#23272e',
+    marginHorizontal: 4,
+  },
+  typeButtonActive: {
+    backgroundColor: '#38bdf8',
+  },
+  typeButtonText: {
+    color: '#a3a3a3',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  typeButtonTextActive: {
+    color: '#18181b',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContainer: {
+    backgroundColor: '#23272e',
+    padding: 24,
+    borderRadius: 16,
+    width: 300,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalInput: {
+    backgroundColor: '#18181b',
+    color: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 12,
+    width: '100%',
+    marginBottom: 16,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: '#38bdf8',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#18181b',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

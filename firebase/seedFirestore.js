@@ -197,7 +197,7 @@ const seedInterviewDomains = async () => {
     const domainRef = doc(collection(db, "interview_domains"));
     await setDoc(domainRef, {
       name: domain.name,
-      questions: domain.questions,
+      descriptiveQuestions: domain.questions, // changed from 'questions' to 'descriptiveQuestions'
     });
     console.log(`Added domain: ${domain.name}`);
   }
