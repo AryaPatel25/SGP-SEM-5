@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const InterviewResults = ({ 
@@ -138,12 +138,12 @@ const InterviewResults = ({
                 </View>
               )}
               {!isQuiz && (
-                <View style={styles.modelAnswerSection}>
-                  <Text style={styles.answerLabel}>Sample Answer:</Text>
-                  <Text style={styles.modelAnswer} numberOfLines={3}>
-                    {question.answer}
-                  </Text>
-                </View>
+              <View style={styles.modelAnswerSection}>
+                <Text style={styles.answerLabel}>Sample Answer:</Text>
+                <Text style={styles.modelAnswer} numberOfLines={3}>
+                  {question.answer}
+                </Text>
+              </View>
               )}
             </View>
           );

@@ -2,15 +2,15 @@
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { db } from "../../firebase/firebaseConfig";
 import DomainCard from "../components/DomainCard";
@@ -256,9 +256,7 @@ const InterviewScreen = () => {
     setError(null);
 
     try {
-      // Use your computer's local IP address here
       const backendUrl = 'http://10.70.32.90:5000/generate-question'; // <-- CHANGE THIS TO YOUR LOCAL IP IF NEEDED
-      console.log('Calling backend with:', { questionType, domain, count });
       const response = await fetch(backendUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -270,7 +268,6 @@ const InterviewScreen = () => {
         }),
       });
       const data = await response.json();
-      console.log('Backend response:', data);
       if (data.questions && data.questions.length > 0) {
         setQuestions(data.questions);
       } else {
@@ -278,7 +275,6 @@ const InterviewScreen = () => {
       }
     } catch (err) {
       setError('Failed to generate question');
-      console.log('Backend fetch error:', err);
     }
     setQuestionsLoading(false);
   };
@@ -375,6 +371,45 @@ const InterviewScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#18181b' }}>
+      {/* Modal for question count input */}
+      {showQuestionCountInput && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>How many questions?</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="number-pad"
+              value={questionCount}
+              onChangeText={setQuestionCount}
+              placeholder="Enter number"
+              placeholderTextColor="#888"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowQuestionCountInput(false);
+                  setPendingDomain(null);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={async () => {
+                  setShowQuestionCountInput(false);
+                  if (pendingDomain) {
+                    await generateAIQuestions(pendingDomain, parseInt(questionCount, 10) || 5);
+                    setPendingDomain(null);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>Generate</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
       <Text style={styles.pageTitle}>Interview Practice</Text>
       <View style={styles.divider} />
       {/* Mode Selector */}
@@ -482,45 +517,6 @@ const InterviewScreen = () => {
             </View>
           )}
         </>
-      )}
-      {/* Modal for question count input */}
-      {showQuestionCountInput && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>How many questions?</Text>
-            <TextInput
-              style={styles.modalInput}
-              keyboardType="number-pad"
-              value={questionCount}
-              onChangeText={setQuestionCount}
-              placeholder="Enter number"
-              placeholderTextColor="#888"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  setShowQuestionCountInput(false);
-                  setPendingDomain(null);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={async () => {
-                  setShowQuestionCountInput(false);
-                  if (pendingDomain) {
-                    await generateAIQuestions(pendingDomain, parseInt(questionCount, 10) || 5);
-                    setPendingDomain(null);
-                  }
-                }}
-              >
-                <Text style={styles.modalButtonText}>Generate</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
       )}
     </View>
   );
