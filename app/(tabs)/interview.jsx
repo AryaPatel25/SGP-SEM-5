@@ -256,7 +256,10 @@ const InterviewScreen = () => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5000/generate-question', {
+      // Use your computer's local IP address here
+      const backendUrl = 'http://10.70.32.90:5000/generate-question'; // <-- CHANGE THIS TO YOUR LOCAL IP IF NEEDED
+      console.log('Calling backend with:', { questionType, domain, count });
+      const response = await fetch(backendUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -267,6 +270,7 @@ const InterviewScreen = () => {
         }),
       });
       const data = await response.json();
+      console.log('Backend response:', data);
       if (data.questions && data.questions.length > 0) {
         setQuestions(data.questions);
       } else {
@@ -274,6 +278,7 @@ const InterviewScreen = () => {
       }
     } catch (err) {
       setError('Failed to generate question');
+      console.log('Backend fetch error:', err);
     }
     setQuestionsLoading(false);
   };
