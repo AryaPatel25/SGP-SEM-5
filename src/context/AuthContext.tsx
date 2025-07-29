@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  createUserWithEmailAndPassword,
-  User as FirebaseUser,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut
+    createUserWithEmailAndPassword,
+    User as FirebaseUser,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    signInWithEmailAndPassword,
+    signOut
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -93,24 +93,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Fetch user from Firestore for fullName, etc.
-        const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
-        if (userFromDb) {
-          setUser(userFromDb);
+      try {
+        if (firebaseUser) {
+          // Fetch user from Firestore for fullName, etc.
+          const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
+          if (userFromDb) {
+            setUser(userFromDb);
+          } else {
+            const userData = convertFirebaseUser(firebaseUser);
+            setUser(userData);
+          }
+          setIsAuthenticated(true);
         } else {
-          const userData = convertFirebaseUser(firebaseUser);
-          setUser(userData);
+          setUser(null);
+          setIsAuthenticated(false);
         }
-        setIsAuthenticated(true);
-      } else {
+      } catch (error) {
+        console.error('Error in auth state change:', error);
         setUser(null);
         setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
@@ -248,7 +265,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Return a default context instead of throwing an error
+    return {
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      login: async () => { throw new Error('Auth not initialized'); },
+      signup: async () => { throw new Error('Auth not initialized'); },
+      logout: async () => { throw new Error('Auth not initialized'); },
+      forgotPassword: async () => { throw new Error('Auth not initialized'); },
+    };
   }
   return context;
 }; 

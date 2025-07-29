@@ -15,7 +15,18 @@ import { useTheme } from '../../src/context/ThemeContext';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signup, isLoading } = useAuth();
+  let signup = async (credentials: any): Promise<void> => { throw new Error('Auth not initialized'); };
+  let isLoading = false;
+
+  try {
+    const auth = useAuth();
+    if (auth && typeof auth === 'object') {
+      signup = auth.signup || (async (credentials: any): Promise<void> => { throw new Error('Auth not initialized'); });
+      isLoading = auth.isLoading || false;
+    }
+  } catch (error) {
+    console.log('Auth context not available yet:', error);
+  }
   const { theme, isDarkMode } = useTheme();
   
   const [fullName, setFullName] = useState('');

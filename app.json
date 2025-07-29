@@ -12,9 +12,9 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.interviewx.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "package": "com.interviewx.app",
-        "googleServicesFile": "./google-services.json",
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
