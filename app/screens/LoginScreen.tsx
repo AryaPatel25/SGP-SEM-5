@@ -19,7 +19,18 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading } = useAuth();
+  let login = async (credentials: any): Promise<void> => { throw new Error('Auth not initialized'); };
+  let isLoading = false;
+
+  try {
+    const auth = useAuth();
+    if (auth && typeof auth === 'object') {
+      login = auth.login || (async () => { throw new Error('Auth not initialized'); });
+      isLoading = auth.isLoading || false;
+    }
+  } catch (error) {
+    console.log('Auth context not available yet:', error);
+  }
   const { theme, isDarkMode } = useTheme();
   
   const [emailOrPhone, setEmailOrPhone] = useState('');

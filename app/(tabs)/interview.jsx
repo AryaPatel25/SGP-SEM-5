@@ -2,17 +2,19 @@
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    Dimensions,
+    FlatList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
+import { DashboardService } from "../../firebase/dashboardService";
 import { db } from "../../firebase/firebaseConfig";
+import { useAuth } from "../../src/context/AuthContext";
 import DomainCard from "../components/DomainCard";
 import InterviewResults from "../components/InterviewResults";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -129,6 +131,17 @@ const ProgressIndicator = ({ current, total }) => {
 };
 
 const InterviewScreen = () => {
+  let user = null;
+  try {
+    const auth = useAuth();
+    if (auth && typeof auth === 'object') {
+      user = auth.user || null;
+    }
+  } catch (error) {
+    console.log('Auth context not available yet:', error);
+  }
+  const [interviewStartTime, setInterviewStartTime] = useState<Date | null>(null);
+  
   const {
     domains,
     setDomains,
@@ -221,6 +234,10 @@ const InterviewScreen = () => {
       setCurrentQuestionIndex(0);
       setShowAnswer(false);
       setUserAnswers({});
+      
+      // Start tracking interview time
+      setInterviewStartTime(new Date());
+      
       const docRef = doc(db, "interview_domains", domain.id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -335,9 +352,107 @@ const InterviewScreen = () => {
     resetState();
   }, [resetState]);
 
-  const handleSubmitInterview = useCallback(() => {
+  const handleSubmitInterview = useCallback(async () => {
+    if (!user?.id || !selectedDomain || !interviewStartTime) {
+      setShowResults(true);
+      return;
+    }
+
+    try {
+      // Calculate interview metrics
+      const endTime = new Date();
+      const timeSpent = Math.round((endTime.getTime() - interviewStartTime.getTime()) / 1000 / 60); // minutes
+      
+      // Calculate score (for quiz questions)
+      let correctAnswers = 0;
+      let totalQuestions = questions.length;
+      
+      if (questionType === 'quiz') {
+        questions.forEach((question, index) => {
+          const userAnswer = userAnswers[index];
+          if (userAnswer && question.correct && userAnswer === question.correct) {
+            correctAnswers++;
+          }
+        });
+      }
+      
+      const score = questionType === 'quiz' ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+      
+      // Save interview session
+      const sessionData = {
+        userId: user.id,
+        domain: selectedDomain.name,
+        questionType,
+        score,
+        totalQuestions,
+        correctAnswers,
+        timeSpent,
+        completedAt: endTime,
+        answers: questions.map((question, index) => ({
+          questionId: question.id || index.toString(),
+          userAnswer: userAnswers[index] || '',
+          isCorrect: questionType === 'quiz' ? (userAnswers[index] === question.correct) : false,
+        })),
+      };
+      
+      await DashboardService.saveInterviewSession(sessionData);
+      
+      // Update user progress
+      await DashboardService.updateUserProgress(user.id, {
+        domain: selectedDomain.name,
+        score,
+        totalQuestions,
+        correctAnswers,
+        timeSpent,
+      });
+      
+      // Add activity
+      await DashboardService.addUserActivity({
+        userId: user.id,
+        type: 'interview_completed',
+        title: `Completed ${selectedDomain.name} Interview`,
+        description: `Scored ${score}% in ${selectedDomain.name}`,
+        metadata: {
+          domain: selectedDomain.name,
+          score,
+          questionType,
+        },
+        timestamp: endTime,
+      });
+      
+      // Check for new achievements
+      const progress = await DashboardService.getUserProgress(user.id);
+      if (progress) {
+        const newAchievements = await DashboardService.checkAchievements(user.id, progress);
+        if (newAchievements.length > 0) {
+          // Add achievement activity
+          for (const achievement of newAchievements) {
+            await DashboardService.addUserActivity({
+              userId: user.id,
+              type: 'achievement_unlocked',
+              title: achievement.title,
+              description: achievement.description,
+              metadata: {
+                achievementId: achievement.id,
+                icon: achievement.icon,
+              },
+              timestamp: new Date(),
+            });
+          }
+          
+          Alert.alert(
+            'Achievement Unlocked! 🏆',
+            `Congratulations! You've unlocked: ${newAchievements.map(a => a.title).join(', ')}`
+          );
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error saving interview data:', error);
+    }
+    
     setShowResults(true);
-  }, [setShowResults]);
+  }, [user, selectedDomain, interviewStartTime, questions, userAnswers, questionType, setShowResults]);
 
   const handleRetakeInterview = useCallback(() => {
     setShowResults(false);
