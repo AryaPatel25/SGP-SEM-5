@@ -24,15 +24,14 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       await signInWithGoogle();
       console.log('signInWithGoogle completed successfully');
       
-      // Navigate to main app after successful sign-in
-      router.push('/(tabs)');
+      // AuthGuard will handle navigation automatically
       
       if (onPress) {
         onPress();
       }
     } catch (error: any) {
       console.error('Google Sign-In Error in button:', error);
-      Alert.alert('Google Sign-In Error', error.message);
+      Alert.alert('Google Sign-In', 'Google Sign-In is not available yet. Please use email/password to sign in.');
     }
   };
 

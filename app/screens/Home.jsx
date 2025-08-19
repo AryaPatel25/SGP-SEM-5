@@ -5,13 +5,17 @@ import { useAuth } from '../../src/context/AuthContext';
 
 export default function Home() {
   const router = useRouter();
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user ?? null;
+  const logout = auth?.logout ?? (() => {});
+  const isAuthenticated = !!auth?.isAuthenticated;
+  const isLoading = !!auth?.isLoading;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = async () => {
     try {
@@ -34,9 +38,9 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Not authenticated, redirecting...</Text>
-      </View>
-    );
+      <Text style={styles.loadingText}>Not authenticated, redirecting...</Text>
+    </View>
+  );
   }
 
   return (
@@ -67,7 +71,10 @@ export default function Home() {
           <Text style={styles.subtitle}>
             Review your performance and track your progress.
           </Text>
-          <Pressable style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}>
+          <Pressable 
+            style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}
+            onPress={() => router.push('/(tabs)/dashboard')}
+          >
             <Text style={styles.buttonTextAlt}>View Progress</Text>
           </Pressable>
         </View>
@@ -202,3 +209,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
+

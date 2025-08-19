@@ -2,13 +2,13 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -18,6 +18,8 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signup, isLoading } = useAuth();
   const { theme, isDarkMode } = useTheme();
+  
+  //
   
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,11 +61,11 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Please enter your full name');
       return false;
     }
-    if (!email.trim() && !phone.trim()) {
-      Alert.alert('Error', 'Please enter either email or phone number');
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address');
       return false;
     }
-    if (email.trim() && !validateEmail(email)) {
+    if (!validateEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return false;
     }
@@ -83,7 +85,9 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -94,8 +98,7 @@ export default function SignupScreen() {
         password,
         confirmPassword,
       });
-      // Use push instead of replace to avoid navigation issues
-      router.push('/(tabs)');
+      // AuthGuard will handle navigation automatically
     } catch (error) {
       Alert.alert('Signup Failed', error instanceof Error ? error.message : 'Please try again');
     }
@@ -109,243 +112,227 @@ export default function SignupScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.back();
+              }}
+            >
+              <Text style={styles.backButtonText}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Create Account</Text>
+            <View style={styles.placeholder} />
+          </View>
+          {/* Logo Section */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>AI</Text>
+            </View>
+            <Text style={styles.appTitle}>
+              Join AI Job Interview Trainer
+            </Text>
+            <Text style={styles.subtitle}>
+              Start your journey to interview success
+            </Text>
+          </View>
+          {/* Signup Form */}
+          <View style={styles.formContainer}>
+            {/* Full Name */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: focusedField === 'fullName' ? theme.colors.primary : theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                placeholder="Full Name"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={fullName}
+                onChangeText={setFullName}
+                onFocus={() => setFocusedField('fullName')}
+                onBlur={() => setFocusedField(null)}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+            {/* Email */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: focusedField === 'email' ? theme.colors.primary : theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                placeholder="Email Address"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {/* Phone */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: focusedField === 'phone' ? theme.colors.primary : theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                placeholder="Phone Number (Optional)"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={phone}
+                onChangeText={setPhone}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => setFocusedField(null)}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {/* Password */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: focusedField === 'password' ? theme.colors.primary : theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                placeholder="Password"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
               <TouchableOpacity
-                style={styles.backButton}
+                style={styles.eyeButton}
+                onPress={() => {
+                  setShowPassword(!showPassword);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={[styles.eyeIcon, { color: theme.colors.textSecondary }]}>
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {password.length > 0 && (
+              <View style={styles.strengthContainer}>
+                <View style={styles.strengthBar}>
+                  <View
+                    style={[
+                      styles.strengthFill,
+                      {
+                        width: `${(passwordStrength / 5) * 100}%`,
+                        backgroundColor: strengthColor,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.strengthText, { color: strengthColor }]}>
+                  {strengthText}
+                </Text>
+              </View>
+            )}
+            {/* Confirm Password */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: focusedField === 'confirmPassword' ? theme.colors.primary : theme.colors.border,
+                    color: theme.colors.text,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                placeholder="Confirm Password"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                onFocus={() => setFocusedField('confirmPassword')}
+                onBlur={() => setFocusedField(null)}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => {
+                  setShowConfirmPassword(!showConfirmPassword);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={[styles.eyeIcon, { color: theme.colors.textSecondary }]}>
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {/* Signup Button */}
+            <TouchableOpacity
+              style={[
+                styles.signupButton,
+                {
+                  backgroundColor: theme.colors.primary,
+                  opacity: isLoading ? 0.7 : 1,
+                },
+              ]}
+              onPress={handleSignup}
+              disabled={isLoading}
+            >
+              <Text style={styles.signupButtonText}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Text>
+            </TouchableOpacity>
+            {/* Google Sign-In Button */}
+            <GoogleSignInButton 
+              style={styles.googleButton}
+              textStyle={styles.googleButtonText}
+            />
+            {/* Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+              <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>or</Text>
+              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+            </View>
+            {/* Login Link */}
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>
+                Already have an account?{' '}
+              </Text>
+              <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.back();
                 }}
               >
-                <Text style={styles.backButtonText}>←</Text>
+                <Text style={styles.loginLink}>Sign In</Text>
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Create Account</Text>
-              <View style={styles.placeholder} />
-            </View>
-
-            {/* Logo Section */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoText}>AI</Text>
-              </View>
-              <Text style={styles.appTitle}>
-                Join AI Job Interview Trainer
-              </Text>
-              <Text style={styles.subtitle}>
-                Start your journey to interview success
-              </Text>
-            </View>
-
-            {/* Signup Form */}
-            <View style={styles.formContainer}>
-              {/* Full Name Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: focusedField === 'fullName' ? theme.colors.primary : theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                    },
-                  ]}
-                  placeholder="Full Name"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  onFocus={() => setFocusedField('fullName')}
-                  onBlur={() => setFocusedField(null)}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                />
-              </View>
-
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: focusedField === 'email' ? theme.colors.primary : theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                    },
-                  ]}
-                  placeholder="Email Address"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              {/* Phone Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: focusedField === 'phone' ? theme.colors.primary : theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                    },
-                  ]}
-                  placeholder="Phone Number (Optional)"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={phone}
-                  onChangeText={setPhone}
-                  onFocus={() => setFocusedField('phone')}
-                  onBlur={() => setFocusedField(null)}
-                  keyboardType="phone-pad"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: focusedField === 'password' ? theme.colors.primary : theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                    },
-                  ]}
-                  placeholder="Password"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => {
-                    setShowPassword(!showPassword);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <Text style={[styles.eyeIcon, { color: theme.colors.textSecondary }]}>
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Password Strength Indicator */}
-              {password.length > 0 && (
-                <View style={styles.strengthContainer}>
-                  <View style={styles.strengthBar}>
-                    <View
-                      style={[
-                        styles.strengthFill,
-                        {
-                          width: `${(passwordStrength / 5) * 100}%`,
-                          backgroundColor: strengthColor,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.strengthText, { color: strengthColor }]}>
-                    {strengthText}
-                  </Text>
-                </View>
-              )}
-
-              {/* Confirm Password Input */}
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: focusedField === 'confirmPassword' ? theme.colors.primary : theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                    },
-                  ]}
-                  placeholder="Confirm Password"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  onFocus={() => setFocusedField('confirmPassword')}
-                  onBlur={() => setFocusedField(null)}
-                  secureTextEntry={!showConfirmPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => {
-                    setShowConfirmPassword(!showConfirmPassword);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <Text style={[styles.eyeIcon, { color: theme.colors.textSecondary }]}>
-                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Signup Button */}
-              <TouchableOpacity
-                style={[
-                  styles.signupButton,
-                  {
-                    backgroundColor: theme.colors.primary,
-                    opacity: isLoading ? 0.7 : 1,
-                  },
-                ]}
-                onPress={handleSignup}
-                disabled={isLoading}
-              >
-                <Text style={styles.signupButtonText}>
-                  {isLoading ? 'Creating Account...' : 'Create Account'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Google Sign-In Button */}
-              <GoogleSignInButton 
-                style={styles.googleButton}
-                textStyle={styles.googleButtonText}
-              />
-
-              {/* Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-                <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>
-                  or
-                </Text>
-                <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
-              </View>
-
-              {/* Login Link */}
-              <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>
-                  Already have an account?{' '}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.back();
-                  }}
-                >
-                  <Text style={styles.loginLink}>
-                    Sign In
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
-        </ScrollView>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -481,6 +468,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     backgroundColor: '#4f46e5',
+    zIndex: 1000,
+    elevation: 5,
   },
   signupButtonText: {
     color: '#fff',
@@ -528,5 +517,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#4f46e5',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontStyle: 'italic',
   },
 }); 

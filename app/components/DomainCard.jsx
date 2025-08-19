@@ -38,7 +38,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1.5,
     borderColor: "#334155",
-    transition: 'all 0.2s',
   },
   domainTitle: {
     fontSize: 18,

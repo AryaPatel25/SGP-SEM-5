@@ -1,19 +1,20 @@
 // app/(tabs)/_layout.tsx
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarStyle: {
-          backgroundColor: '#121212',
-          borderTopColor: '#333',
-        },
         headerShown: false,
-        headerStyle: {
-          backgroundColor: '#121212',
+        tabBarActiveTintColor: '#38bdf8',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarStyle: {
+          backgroundColor: '#18181b',
+          borderTopColor: '#334155',
+          borderTopWidth: 1,
         },
+        headerStyle: { backgroundColor: '#18181b' },
         headerTintColor: '#fff',
       }}
     >
@@ -21,12 +22,27 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
+          tabBarIcon: (props) => (
+            <Ionicons name="home" size={props.size ?? 20} color={props.color ?? '#94a3b8'} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: (props) => (
+            <Ionicons name="stats-chart" size={props.size ?? 20} color={props.color ?? '#94a3b8'} />
+          ),
         }}
       />
       <Tabs.Screen
         name="interview"
         options={{
           title: 'Interview',
+          tabBarIcon: (props) => (
+            <Ionicons name="chatbubbles" size={props.size ?? 20} color={props.color ?? '#94a3b8'} />
+          ),
         }}
       />
     </Tabs>

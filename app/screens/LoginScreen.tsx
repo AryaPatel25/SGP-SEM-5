@@ -20,7 +20,18 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading } = useAuth();
+  let login = async (credentials: any): Promise<void> => { throw new Error('Auth not initialized'); };
+  let isLoading = false;
+
+  try {
+    const auth = useAuth();
+    if (auth && typeof auth === 'object') {
+      login = auth.login || (async () => { throw new Error('Auth not initialized'); });
+      isLoading = auth.isLoading || false;
+    }
+  } catch (error) {
+    console.log('Auth context not available yet:', error);
+  }
   const { theme, isDarkMode } = useTheme();
   
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -73,11 +84,13 @@ export default function LoginScreen() {
     }
 
     try {
+      console.log('LoginScreen: Starting login process...');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await login({ email: emailOrPhone, password, rememberMe });
-      // Use push instead of replace to avoid navigation issues
-      router.push('/(tabs)');
+      console.log('LoginScreen: Login successful, waiting for AuthGuard redirect...');
+      // AuthGuard will handle navigation automatically
     } catch (error) {
+      console.error('LoginScreen: Login error:', error);
       Alert.alert('Login Failed', error instanceof Error ? error.message : 'Please try again');
     }
   };
@@ -196,6 +209,13 @@ export default function LoginScreen() {
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </Text>
             </TouchableOpacity>
+
+            {/* Loading Indicator */}
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Please wait...</Text>
+              </View>
+            )}
 
             {/* Google Sign-In Button */}
             <GoogleSignInButton 
@@ -387,5 +407,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#4f46e5',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontStyle: 'italic',
   },
 }); 

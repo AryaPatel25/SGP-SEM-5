@@ -10,8 +10,6 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../../firebase/firebaseConfig';
-import { firebasePersistence } from '../utils/firebasePersistence';
-import { simpleGoogleSignIn } from '../utils/simpleGoogleSignIn';
 
 export interface User {
   id: string;
@@ -27,12 +25,6 @@ export interface User {
     notifications?: boolean;
     language?: string;
   };
-}
-
-export interface AuthState {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
 }
 
 export interface LoginCredentials {
@@ -112,6 +104,16 @@ const saveUserToFirestore = async (user: User): Promise<void> => {
       lastLoginAt: user.lastLoginAt?.toISOString() || new Date().toISOString(),
       isEmailVerified: user.isEmailVerified || false,
       preferences: user.preferences || {},
+      // Nested, denormalized fields for quick reads
+      achievements: [],
+      stats: {
+        totalInterviews: 0,
+        averageScore: 0,
+        answeredQuestions: 0,
+        totalQuestions: 0,
+        updatedAt: new Date().toISOString(),
+      },
+      progressSummary: {},
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
@@ -145,35 +147,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    
     // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Save user to custom persistence
-        await firebasePersistence.saveUser(firebaseUser);
-        
-        // Fetch user from Firestore for fullName, etc.
-        const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
-        if (userFromDb) {
-          setUser(userFromDb);
-          // Update last login time
-          await updateUserInFirestore(firebaseUser.uid, { lastLoginAt: new Date() });
+      
+      try {
+        if (firebaseUser) {
+          // Fetch user from Firestore for fullName, etc.
+          const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
+          if (userFromDb) {
+            setUser(userFromDb);
+            setIsAuthenticated(true);
+            // Update last login time
+            await updateUserInFirestore(firebaseUser.uid, { lastLoginAt: new Date() });
+          } else {
+            const userData = convertFirebaseUser(firebaseUser);
+            setUser(userData);
+            setIsAuthenticated(true);
+            // Save new user to Firestore
+            await saveUserToFirestore(userData);
+          }
         } else {
-          const userData = convertFirebaseUser(firebaseUser);
-          setUser(userData);
-          // Save new user to Firestore
-          await saveUserToFirestore(userData);
+          setUser(null);
+          setIsAuthenticated(false);
         }
-        setIsAuthenticated(true);
-      } else {
+      } catch (error) {
+        console.error('Auth error:', error);
         setUser(null);
         setIsAuthenticated(false);
-        // Clear user from custom persistence
-        await firebasePersistence.clearUser();
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    return () => {
+      // cleanup
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
@@ -188,28 +204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userCredential = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       const firebaseUser = userCredential.user;
       
-      // Save user to custom persistence
-      await firebasePersistence.saveUser(firebaseUser);
-      
-      // Fetch user from Firestore for fullName, etc.
-      const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
-      let userData: User;
-      if (userFromDb) {
-        userData = userFromDb;
-        // Update last login time
-        await updateUserInFirestore(firebaseUser.uid, { lastLoginAt: new Date() });
-      } else {
-        userData = convertFirebaseUser(firebaseUser);
-        // Save new user to Firestore
-        await saveUserToFirestore(userData);
-      }
-      setUser(userData);
-      setIsAuthenticated(true);
+      // The auth state listener will handle setting the user state
+      // We don't need to manually set it here
       
       if (credentials.rememberMe) {
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        await AsyncStorage.setItem('user', JSON.stringify({ id: firebaseUser.uid }));
       }
+      // done
     } catch (error: any) {
+      console.error('Login error:', error);
       let errorMessage = 'Login failed. Please check your credentials.';
       
       if (error.code === 'auth/user-not-found') {
@@ -232,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (credentials: SignupCredentials) => {
     try {
+      // create user
       setIsLoading(true);
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
@@ -242,16 +246,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = convertFirebaseUser(firebaseUser);
       userData.fullName = credentials.fullName;
       
-      // Save user to custom persistence
-      await firebasePersistence.saveUser(firebaseUser);
-      
       // Store user details in Firestore
       await saveUserToFirestore(userData);
       
+      // Optimistically set auth state so UI can proceed immediately
       setUser(userData);
       setIsAuthenticated(true);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+      // The auth state listener will also reconcile the state
+      await AsyncStorage.setItem('user', JSON.stringify({ id: firebaseUser.uid }));
+      // done
     } catch (error: any) {
+      console.error('Signup error:', error);
       let errorMessage = 'Signup failed. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'An account with this email already exists.';
@@ -268,60 +274,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      console.log('AuthContext: signInWithGoogle started');
-      setIsLoading(true);
-      
-      console.log('AuthContext: Calling simpleGoogleSignIn...');
-      const result = await simpleGoogleSignIn();
-      console.log('AuthContext: simpleGoogleSignIn result:', result);
-      
-      if (result.success && result.user) {
-        console.log('AuthContext: Google Sign-In successful, processing user...');
-        const firebaseUser = result.user;
-        
-        // Save user to custom persistence
-        await firebasePersistence.saveUser(firebaseUser);
-        
-        const userFromDb = await fetchUserFromFirestore(firebaseUser.uid);
-        let userData: User;
-        
-        if (userFromDb) {
-          userData = userFromDb;
-          // Update last login time
-          await updateUserInFirestore(firebaseUser.uid, { lastLoginAt: new Date() });
-        } else {
-          userData = convertFirebaseUser(firebaseUser);
-          // Store user in Firestore if they don't exist
-          await saveUserToFirestore(userData);
-        }
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-        console.log('AuthContext: User successfully signed in and data saved');
-      } else {
-        // For mobile redirect, the user will be handled by the redirect result
-        console.log('AuthContext: Google Sign-In redirect initiated or failed:', result.error);
-        if (result.error && !result.error.includes('Redirecting')) {
-          throw new Error(result.error);
-        }
-      }
-      
+      // google sign-in not implemented yet
+      throw new Error('Google Sign-In is not implemented yet. Please use email/password.');
     } catch (error: any) {
-      console.error('AuthContext: Google Sign-In Error:', error);
-      let errorMessage = 'Google Sign-In failed. Please try again.';
-      if (error.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = 'An account with this email already exists. Please sign in with that account or reset your password.';
-      } else if (error.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid Google credentials.';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = 'Google Sign-In is not enabled for this project.';
-      } else if (error.code === 'auth/credential-already-in-use') {
-        errorMessage = 'This credential is already in use with a different account.';
-      }
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      console.error('Google Sign-In Error:', error);
+      throw new Error('Google Sign-In failed. Please try again.');
     }
   };
 
@@ -332,10 +289,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setIsAuthenticated(false);
       await AsyncStorage.removeItem('user');
-      // Clear user from custom persistence
-      await firebasePersistence.clearUser();
+      // done
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error('Logout error:', error);
       throw new Error('Logout failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -344,13 +300,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const forgotPassword = async (email: string): Promise<string> => {
     try {
-      console.log('Firebase: Starting password reset for:', email);
       setIsLoading(true);
       await sendPasswordResetEmail(auth, email);
-      console.log('Firebase: Password reset email sent successfully');
+      // done
       return 'Password reset email sent. Please check your inbox.';
     } catch (error: any) {
-      console.error('Firebase: Password reset error:', error);
+      console.error('Password reset error:', error);
       let errorMessage = 'Failed to send password reset email.';
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email address.';
@@ -380,7 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      console.error('Profile update error:', error);
       throw new Error('Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
@@ -405,7 +360,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Return a default context instead of throwing an error
+    return {
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      login: async () => { throw new Error('Auth not initialized'); },
+      signup: async () => { throw new Error('Auth not initialized'); },
+      signInWithGoogle: async () => { throw new Error('Auth not initialized'); },
+      logout: async () => { throw new Error('Auth not initialized'); },
+      forgotPassword: async () => { throw new Error('Auth not initialized'); },
+      updateUserProfile: async () => { throw new Error('Auth not initialized'); },
+    };
   }
   return context;
 }; 

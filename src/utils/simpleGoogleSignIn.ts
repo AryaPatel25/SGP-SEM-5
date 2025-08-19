@@ -35,7 +35,7 @@ export const simpleGoogleSignIn = async (): Promise<GoogleSignInResult> => {
     const useProxy = Platform.OS !== 'web';
     const clientId = getGoogleClientId(useProxy);
 
-    const redirectUri = AuthSession.makeRedirectUri({ scheme: 'interviewx' });
+    const redirectUri = AuthSession.makeRedirectUri({ scheme: 'interviewx'});
 
     const bytesToHex = (bytes: Uint8Array) => Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
     const nonce = bytesToHex(await Crypto.getRandomBytesAsync(16));
@@ -55,7 +55,10 @@ export const simpleGoogleSignIn = async (): Promise<GoogleSignInResult> => {
     const authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
     const authUrl = `${authorizationEndpoint}?${queryParams.toString()}`;
 
-    const result = await AuthSession.startAsync({ authUrl, returnUrl: redirectUri });
+    // startAsync API signature differs by platform/SDK; keep a conservative call
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const result = await (AuthSession as any).startAsync({ authUrl, returnUrl: redirectUri });
 
     if (result.type !== 'success') {
       return { success: false, error: 'Google Sign-In was cancelled.' };

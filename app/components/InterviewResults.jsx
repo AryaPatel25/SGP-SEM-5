@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { DashboardService } from '../../firebase/dashboardService';
+import { useAuth } from '../../src/context/AuthContext';
 
 const InterviewResults = ({ 
   domain, 
@@ -17,10 +19,12 @@ const InterviewResults = ({
   onRetakeInterview,
   questionType
 }) => {
+  const { user } = useAuth();
   const [evaluations, setEvaluations] = useState({});
   const [sampleAnswers, setSampleAnswers] = useState({});
   const [loadingSampleAnswers, setLoadingSampleAnswers] = useState(false);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+  const [dataSaved, setDataSaved] = useState(false);
 
   useEffect(() => {
     if (questionType === 'descriptive') {
@@ -98,6 +102,33 @@ const InterviewResults = ({
       correctAnswers: correct
     };
   }, [questions, userAnswers, questionType, evaluations]);
+
+  // Save interview data to dashboard when results are calculated
+  useEffect(() => {
+    const saveInterviewData = async () => {
+      if (user?.id && !dataSaved && score !== undefined) {
+        try {
+          console.log('Saving interview data to dashboard...');
+          
+          // Save interview result using the new method
+          await DashboardService.saveInterviewResult(user.id, {
+            domain: domain?.name || 'Unknown Domain',
+            questionType: questionType,
+            score: score,
+            totalQuestions: totalQuestions,
+            correctAnswers: correctAnswers
+          });
+
+          console.log('Interview data saved successfully');
+          setDataSaved(true);
+        } catch (error) {
+          console.error('Error saving interview data:', error);
+        }
+      }
+    };
+
+    saveInterviewData();
+  }, [user?.id, score, totalQuestions, correctAnswers, domain, questionType, userAnswers, evaluations, dataSaved]);
 
   const getScoreColor = (score) => {
     if (score >= 80) return '#4CAF50';

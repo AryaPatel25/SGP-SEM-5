@@ -78,7 +78,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 18,
     marginBottom: 12,
-    transition: 'all 0.2s',
   },
   optionSelected: {
     backgroundColor: "#38bdf8",
