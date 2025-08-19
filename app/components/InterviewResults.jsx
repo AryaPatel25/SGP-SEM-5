@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,65 @@ const InterviewResults = ({
   onRetakeInterview,
   questionType
 }) => {
+  const [evaluations, setEvaluations] = useState({});
+  const [sampleAnswers, setSampleAnswers] = useState({});
+  const [loadingSampleAnswers, setLoadingSampleAnswers] = useState(false);
+  const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+
+  useEffect(() => {
+    if (questionType === 'descriptive') {
+      const fetchEvaluations = async () => {
+        setLoadingEvaluations(true);
+        const evals = {};
+        for (let i = 0; i < questions.length; i++) {
+          const userAnswer = userAnswers[i] || '';
+          const modelAnswer = questions[i].answer || '';
+          if (userAnswer.trim().length > 0 && modelAnswer.trim().length > 0) {
+            try {
+              const res = await fetch('http://10.70.32.90:5000/evaluate-answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userAnswer, modelAnswer }),
+              });
+              const data = await res.json();
+              evals[i] = data;
+            } catch {
+              evals[i] = { score: null, feedback: 'Could not evaluate.' };
+            }
+          }
+        }
+        setEvaluations(evals);
+        setLoadingEvaluations(false);
+      };
+      fetchEvaluations();
+
+      const fetchSampleAnswers = async () => {
+        setLoadingSampleAnswers(true);
+        const samples = {};
+        for (let i = 0; i < questions.length; i++) {
+          if (!questions[i].answer) {
+            try {
+              console.log('Requesting sample answer for:', questions[i].question);
+              const res = await fetch('http://10.70.32.90:5000/generate-sample-answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: questions[i].question }),
+              });
+              const data = await res.json();
+              console.log('Sample answer response:', data);
+              samples[i] = data.answer;
+            } catch {
+              samples[i] = 'Could not generate sample answer.';
+            }
+          }
+        }
+        setSampleAnswers(samples);
+        setLoadingSampleAnswers(false);
+      };
+      fetchSampleAnswers();
+    }
+  }, [questions, userAnswers, questionType]);
+
   const { score, totalQuestions, answeredQuestions, correctAnswers } = useMemo(() => {
     const total = questions.length;
     const answered = Object.keys(userAnswers).length;
@@ -23,13 +83,12 @@ const InterviewResults = ({
     if (questionType === 'quiz') {
       correct = questions.reduce((count, question, index) => {
         const userAnswer = userAnswers[index] || '';
-        // For quiz, compare to correct answer
         return count + (userAnswer === question.options?.["ABCD".indexOf(question.correct)] ? 1 : 0);
       }, 0);
     } else {
+      // Use Gemini's evaluation for correctness (score >= 7/10)
       correct = questions.reduce((count, question, index) => {
-        const userAnswer = userAnswers[index] || '';
-        return count + (userAnswer.trim().length > 0 ? 1 : 0);
+        return count + (evaluations[index] && typeof evaluations[index].score === 'number' && evaluations[index].score >= 7 ? 1 : 0);
       }, 0);
     }
     return {
@@ -38,7 +97,7 @@ const InterviewResults = ({
       answeredQuestions: answered,
       correctAnswers: correct
     };
-  }, [questions, userAnswers, questionType]);
+  }, [questions, userAnswers, questionType, evaluations]);
 
   const getScoreColor = (score) => {
     if (score >= 80) return '#4CAF50';
@@ -52,23 +111,28 @@ const InterviewResults = ({
     return 'Keep practicing to build confidence!';
   };
 
+  if (loadingSampleAnswers || loadingEvaluations) {
+    return (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color="#38bdf8" />
+        <Text style={styles.loadingOverlayText}>Checking your answer...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>Interview Practice Results</Text>
         <Text style={styles.subtitle}>{domain?.name || 'Domain'}</Text>
       </View>
-
       {/* Score Card */}
       <View style={styles.scoreCard}>
         <View style={styles.scoreCircle}>
-          <Text style={[styles.scoreText, { color: getScoreColor(score) }]}>
-            {score}%
-          </Text>
+          <Text style={[styles.scoreText, { color: getScoreColor(score) }]}> {score}% </Text>
         </View>
         <Text style={styles.scoreMessage}>{getScoreMessage(score)}</Text>
       </View>
-
       {/* Statistics */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
@@ -84,7 +148,6 @@ const InterviewResults = ({
           <Text style={styles.statLabel}>Practiced</Text>
         </View>
       </View>
-
       {/* Detailed Results */}
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsTitle}>Practice Questions Summary</Text>
@@ -99,7 +162,8 @@ const InterviewResults = ({
             correctAnswer = question.options?.[correctIdx] || '';
             isCorrect = userAnswer === correctAnswer;
           } else {
-            isCorrect = hasAnswered;
+            // Use Gemini's evaluation for correctness (score >= 7/10)
+            isCorrect = evaluations[index] && typeof evaluations[index].score === 'number' ? evaluations[index].score >= 7 : false;
           }
           return (
             <View key={index} style={styles.questionResult}>
@@ -135,30 +199,43 @@ const InterviewResults = ({
                   <Text style={styles.userAnswer} numberOfLines={3}>
                     {userAnswer}
                   </Text>
+                  {evaluations[index] && (
+                    <>
+                      <Text style={styles.answerLabel}>Gemini Score:</Text>
+                      <Text style={styles.userAnswer} numberOfLines={1}>
+                        {evaluations[index].score !== null ? evaluations[index].score + ' / 10' : 'N/A'}
+                      </Text>
+                      <Text style={styles.answerLabel}>Gemini Feedback:</Text>
+                      <Text style={styles.userAnswer} numberOfLines={3}>
+                        {evaluations[index].feedback}
+                      </Text>
+                    </>
+                  )}
                 </View>
               )}
               {!isQuiz && (
-              <View style={styles.modelAnswerSection}>
-                <Text style={styles.answerLabel}>Sample Answer:</Text>
-                <Text style={styles.modelAnswer} numberOfLines={3}>
-                  {question.answer}
-                </Text>
-              </View>
+                <View style={styles.modelAnswerSection}>
+                  <Text style={styles.answerLabel}>Sample Answer:</Text>
+                  <Text style={styles.modelAnswer} numberOfLines={3}>
+                    {question.answer ? question.answer : (sampleAnswers[index] === undefined ? 'Generating sample answer...' : sampleAnswers[index] || 'No sample answer.')}
+                  </Text>
+                </View>
               )}
             </View>
           );
         })}
       </View>
-
-      {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.retakeButton} 
-          onPress={onRetakeInterview}
+          onPress={() => {
+            setEvaluations({});
+            setSampleAnswers({});
+            onRetakeInterview();
+          }}
         >
           <Text style={styles.retakeButtonText}>Practice Again</Text>
         </TouchableOpacity>
-        
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={onBackToDomains ? onBackToDomains : onRetakeInterview}
@@ -175,191 +252,211 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-    paddingHorizontal: 16,
+    backgroundColor: '#18181b',
+    paddingHorizontal: 18,
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: 28,
+    marginBottom: 36,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 8,
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#f1f5f9',
+    marginBottom: 10,
+    letterSpacing: 1.1,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#aaa',
-    fontWeight: '500',
+    fontSize: 19,
+    color: '#38bdf8',
+    fontWeight: '600',
   },
   scoreCard: {
-    backgroundColor: '#1e1e1e',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: '#23272e',
+    borderRadius: 22,
+    padding: 28,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
   },
   scoreCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#2a2a2a',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: '#18181b',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: '#4f46e5',
+    marginBottom: 18,
+    borderWidth: 5,
+    borderColor: '#38bdf8',
   },
   scoreText: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 36,
+    fontWeight: '900',
   },
   scoreMessage: {
-    fontSize: 18,
-    color: '#fff',
-    fontWeight: '600',
+    fontSize: 20,
+    color: '#f1f5f9',
+    fontWeight: '700',
     textAlign: 'center',
+    marginTop: 8,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   statItem: {
     flex: 1,
-    backgroundColor: '#1e1e1e',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#23272e',
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 6,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
   },
   statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4CAF50',
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#38bdf8',
+    marginBottom: 6,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#aaa',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#a3a3a3',
+    fontWeight: '600',
   },
   resultsContainer: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   resultsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#f1f5f9',
+    marginBottom: 18,
   },
   questionResult: {
-    backgroundColor: '#1e1e1e',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: '#23272e',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: '#334155',
   },
   questionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   questionNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4f46e5',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#38bdf8',
   },
   statusIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   statusText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '800',
   },
   questionText: {
-    fontSize: 14,
-    color: '#fff',
-    lineHeight: 20,
-    marginBottom: 12,
+    fontSize: 16,
+    color: '#f1f5f9',
+    lineHeight: 22,
+    marginBottom: 14,
   },
   answerSection: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   answerLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4CAF50',
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#38bdf8',
+    marginBottom: 6,
   },
   userAnswer: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#ccc',
-    lineHeight: 18,
+    lineHeight: 20,
     fontStyle: 'italic',
+    marginBottom: 6,
   },
   modelAnswerSection: {
-    borderTopWidth: 1,
+    borderTopWidth: 1.5,
     borderTopColor: '#333',
-    paddingTop: 12,
+    paddingTop: 14,
   },
   modelAnswer: {
-    fontSize: 13,
-    color: '#aaa',
-    lineHeight: 18,
+    fontSize: 15,
+    color: '#a3a3a3',
+    lineHeight: 20,
   },
   actionButtons: {
-    marginBottom: 40,
+    marginBottom: 44,
   },
   retakeButton: {
-    backgroundColor: '#4f46e5',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#38bdf8',
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 14,
+    shadowColor: '#38bdf8',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
   },
   retakeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#18181b',
+    fontSize: 18,
+    fontWeight: '800',
   },
   backButton: {
-    backgroundColor: '#666',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#23272e',
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
   },
   backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#38bdf8',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(24,24,27,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  loadingOverlayText: {
+    color: '#38bdf8',
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 18,
+    textAlign: 'center',
   },
 });
 

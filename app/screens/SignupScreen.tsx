@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -201,6 +202,8 @@ export default function SignupScreen() {
                   onFocus={() => setFocusedField('phone')}
                   onBlur={() => setFocusedField(null)}
                   keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
 
@@ -292,8 +295,6 @@ export default function SignupScreen() {
                 </TouchableOpacity>
               </View>
 
-
-
               {/* Signup Button */}
               <TouchableOpacity
                 style={[
@@ -310,6 +311,12 @@ export default function SignupScreen() {
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Text>
               </TouchableOpacity>
+
+              {/* Google Sign-In Button */}
+              <GoogleSignInButton 
+                style={styles.googleButton}
+                textStyle={styles.googleButtonText}
+              />
 
               {/* Divider */}
               <View style={styles.dividerContainer}>
@@ -366,16 +373,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#fff',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -384,19 +392,19 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   logo: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     backgroundColor: '#4f46e5',
   },
   logoText: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -475,6 +483,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#4f46e5',
   },
   signupButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  googleButton: {
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#1a1a1a',
+  },
+  googleButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',

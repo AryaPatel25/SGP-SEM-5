@@ -56,7 +56,7 @@ export default function Home() {
           </Text>
           <Pressable
             style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            onPress={() => router.push('/(tabs)/Interview')}
+            onPress={() => router.push('/(tabs)/interview')}
           >
             <Text style={styles.buttonText}>Start Interview</Text>
           </Pressable>

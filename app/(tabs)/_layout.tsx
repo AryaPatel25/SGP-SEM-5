@@ -5,9 +5,9 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4CAF50', // Adjust for your theme
+        tabBarActiveTintColor: '#4CAF50',
         tabBarStyle: {
-          backgroundColor: '#121212',     // Dark mode tab bar color
+          backgroundColor: '#121212',
           borderTopColor: '#333',
         },
         headerShown: false,
@@ -15,9 +15,6 @@ export default function TabLayout() {
           backgroundColor: '#121212',
         },
         headerTintColor: '#fff',
-        tabBarLabelStyle: {
-          fontFamily: 'SpaceMono',
-        },
       }}
     >
       <Tabs.Screen

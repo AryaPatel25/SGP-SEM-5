@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -83,7 +84,7 @@ export default function LoginScreen() {
 
   const handleForgotPassword = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Forgot Password', 'Password reset functionality will be implemented here');
+    router.push('/forgot-password' as any);
   };
 
   useEffect(() => {
@@ -196,14 +197,11 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>
-                or
-              </Text>
-              <View style={styles.divider} />
-            </View>
+            {/* Google Sign-In Button */}
+            <GoogleSignInButton 
+              style={styles.googleButton}
+              textStyle={styles.googleButtonText}
+            />
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
@@ -363,20 +361,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  dividerContainer: {
-    flexDirection: 'row',
+  googleButton: {
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: '#1a1a1a',
   },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#475569',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#94a3b8',
+  googleButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   signupContainer: {
     flexDirection: 'row',

@@ -14,10 +14,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Note: Using getAuth() for now. The warning about AsyncStorage persistence
-// is just a warning - authentication will still work, but sessions won't persist
-// between app restarts. This can be fixed later with proper React Native persistence setup.
+// Use getAuth for better compatibility with Google Sign-In
+// The AsyncStorage persistence warning is handled manually in AuthContext
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 export { auth, db, app as firebaseApp };

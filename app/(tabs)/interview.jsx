@@ -28,7 +28,8 @@ const useInterviewState = () => {
   const [questions, setQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false); // <-- Add this line
   const [userAnswers, setUserAnswers] = useState({});
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
@@ -39,7 +40,8 @@ const useInterviewState = () => {
     setSelectedDomain(null);
     setQuestions([]);
     setCurrentQuestionIndex(0);
-    setShowAnswer(false);
+    setShowHint(false);
+    setShowAnswer(false); // <-- Reset showAnswer
     setUserAnswers({});
     setError(null);
     setShowResults(false);
@@ -58,8 +60,10 @@ const useInterviewState = () => {
     setQuestionsLoading,
     currentQuestionIndex,
     setCurrentQuestionIndex,
+    showHint,
+    setShowHint,
     showAnswer,
-    setShowAnswer,
+    setShowAnswer, // <-- Return these
     userAnswers,
     setUserAnswers,
     error,
@@ -142,6 +146,8 @@ const InterviewScreen = () => {
     setQuestionsLoading,
     currentQuestionIndex,
     setCurrentQuestionIndex,
+    showHint,
+    setShowHint,
     showAnswer,
     setShowAnswer,
     userAnswers,
@@ -219,7 +225,7 @@ const InterviewScreen = () => {
       setQuestions([]);
       setQuestionsLoading(true);
       setCurrentQuestionIndex(0);
-      setShowAnswer(false);
+      setShowHint(false);
       setUserAnswers({});
       const docRef = doc(db, "interview_domains", domain.id);
       const docSnap = await getDoc(docRef);
@@ -251,7 +257,7 @@ const InterviewScreen = () => {
     setQuestions([]);
     setQuestionsLoading(true);
     setCurrentQuestionIndex(0);
-    setShowAnswer(false);
+    setShowHint(false);
     setUserAnswers({});
     setError(null);
 
@@ -289,7 +295,7 @@ const InterviewScreen = () => {
       setQuestions([]);
       setQuestionsLoading(true);
       setCurrentQuestionIndex(0);
-      setShowAnswer(false);
+      setShowHint(false);
       setUserAnswers({});
       setError(null);
       fetchQuestions(domain);
@@ -303,7 +309,7 @@ const InterviewScreen = () => {
       animateOut();
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev - 1);
-        setShowAnswer(false);
+        setShowHint(false);
         animateIn();
       }, 200);
     }
@@ -314,7 +320,7 @@ const InterviewScreen = () => {
       animateOut();
       setTimeout(() => {
         setCurrentQuestionIndex(prev => prev + 1);
-        setShowAnswer(false);
+        setShowHint(false);
         animateIn();
       }, 200);
     }
@@ -327,9 +333,9 @@ const InterviewScreen = () => {
     }));
   }, [setUserAnswers]);
 
-  const handleToggleAnswer = useCallback(() => {
-    setShowAnswer(prev => !prev);
-  }, [setShowAnswer]);
+  const handleToggleHint = useCallback(() => {
+    setShowHint(prev => !prev);
+  }, [setShowHint]);
 
   const handleBackToDomains = useCallback(() => {
     resetState();
@@ -502,8 +508,8 @@ const InterviewScreen = () => {
                   total={questions.length}
                   userAnswer={currentUserAnswer}
                   onAnswerChange={handleAnswerChange}
-                  showAnswer={showAnswer}
-                  onToggleAnswer={handleToggleAnswer}
+                  showHint={showHint}
+                  onToggleHint={handleToggleHint}
                 />
               )}
               <NavigationButtons
