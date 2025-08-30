@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { DashboardService } from '../../firebase/dashboardService';
 import { useAuth } from '../../src/context/AuthContext';
+import { buildBackendUrl } from '../../src/utils/backendUrl';
 
 const InterviewResults = ({ 
   domain, 
@@ -36,7 +37,7 @@ const InterviewResults = ({
           const modelAnswer = questions[i].answer || '';
           if (userAnswer.trim().length > 0 && modelAnswer.trim().length > 0) {
             try {
-              const res = await fetch('http://10.70.32.90:5000/evaluate-answer', {
+              const res = await fetch(buildBackendUrl('/evaluate-answer'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userAnswer, modelAnswer }),
@@ -60,7 +61,7 @@ const InterviewResults = ({
           if (!questions[i].answer) {
             try {
               console.log('Requesting sample answer for:', questions[i].question);
-              const res = await fetch('http://10.70.32.90:5000/generate-sample-answer', {
+              const res = await fetch(buildBackendUrl('/generate-sample-answer'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: questions[i].question }),

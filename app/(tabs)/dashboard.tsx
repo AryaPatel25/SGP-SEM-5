@@ -240,7 +240,7 @@ function DashboardContent() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.fullName || 'User'} 👋</Text>
+          <Text style={styles.userName}>{user?.fullName || (user?.email ? user.email.split('@')[0] : 'User')} 👋</Text>
         </View>
         <TouchableOpacity
           style={styles.refreshButton}

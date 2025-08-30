@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db } from '../../../firebase/firebaseConfig';
+import { buildBackendUrl } from '../../../src/utils/backendUrl';
 import DomainCard from '../../components/DomainCard';
 import InterviewResults from '../../components/InterviewResults';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -55,6 +56,7 @@ export default function InterviewScreen() {
   const [showCountModal, setShowCountModal] = useState(false);
   const [pendingDomain, setPendingDomain] = useState(null);
   const [questionCount, setQuestionCount] = useState('5');
+  const [innerError, setInnerError] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -87,6 +89,7 @@ export default function InterviewScreen() {
     setCurrentIndex(0);
     setUserAnswers({});
     setShowResults(false);
+    setInnerError(null);
   }, []);
 
   const handleDomainPress = useCallback((domain) => {
@@ -97,29 +100,50 @@ export default function InterviewScreen() {
 
   const loadQuestionsForDomain = useCallback(async (domain) => {
     try {
-      setError(null); setSelectedDomain(domain); setQuestions([]); setLoadingQuestions(true); setCurrentIndex(0); setUserAnswers({});
+      setError(null); setInnerError(null); setSelectedDomain(domain); setQuestions([]); setLoadingQuestions(true); setCurrentIndex(0); setUserAnswers({});
       if (typeof domain.id === 'string' && domain.id.startsWith('sample-')) {
         const key = questionType === 'quiz' ? 'quizQuestions' : 'descriptiveQuestions';
         const data = Array.isArray(domain[key]) ? domain[key] : [];
-        setQuestions(data); if (data.length === 0) setError('No questions found for this domain and type.'); return;
+        setQuestions(data); if (data.length === 0) setInnerError('No questions found for this domain and type.'); return;
       }
       const ref = doc(db, 'interview_domains', domain.id); const snap = await getDoc(ref);
-      if (!snap.exists()) { setError('Domain not found.'); return; }
+      if (!snap.exists()) { setInnerError('Domain not found.'); return; }
       const data = snap.data(); const key = questionType === 'quiz' ? 'quizQuestions' : 'descriptiveQuestions';
-      const arr = Array.isArray(data[key]) ? data[key] : []; setQuestions(arr); if (arr.length === 0) setError('No questions found for this domain and type.');
-    } catch (e) { setError('Failed to load questions. Please try again.'); }
+      const arr = Array.isArray(data[key]) ? data[key] : []; setQuestions(arr); if (arr.length === 0) setInnerError('No questions found for this domain and type.');
+    } catch (e) { setInnerError('Failed to load questions. Please try again.'); }
     finally { setLoadingQuestions(false); }
   }, [questionType]);
 
   const generateAIQuestions = useCallback(async (domain, count) => {
     try {
-      setError(null); setSelectedDomain(domain); setQuestions([]); setLoadingQuestions(true); setCurrentIndex(0); setUserAnswers({});
-      const backendUrl = 'http://10.70.32.90:5000/generate-question';
-      const res = await fetch(backendUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: '', questionType, domain, count }) });
+      setError(null); setInnerError(null); setSelectedDomain(domain); setQuestions([]); setLoadingQuestions(true); setCurrentIndex(0); setUserAnswers({});
+      const backendUrl = buildBackendUrl('/generate-question');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(backendUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: '', questionType, domain, count }), signal: controller.signal });
+      clearTimeout(timeoutId);
       const data = await res.json(); const list = Array.isArray(data?.questions) ? data.questions : [];
-      const normalized = list.map(q => (typeof q === 'string' ? { question: q, hint: '' } : { question: q.question || q.text || '', hint: q.hint || '' }));
-      setQuestions(normalized); if (normalized.length === 0) setError('No questions generated.');
-    } catch { setError('Failed to generate questions.'); }
+      const normalized = list.map(q => {
+        if (questionType === 'quiz') {
+          if (typeof q === 'object') {
+            return {
+              question: q.question || q.text || '',
+              options: Array.isArray(q.options) ? q.options : [],
+              correct: q.correct, // expected to be 'A' | 'B' | 'C' | 'D'
+            };
+          }
+          return { question: String(q || ''), options: [], correct: undefined };
+        }
+        // descriptive
+        if (typeof q === 'object') {
+          return { question: q.question || q.text || '', hint: q.hint || '' };
+        }
+        return { question: String(q || ''), hint: '' };
+      });
+      setQuestions(normalized); if (normalized.length === 0) setInnerError('No questions generated.');
+    } catch {
+      setInnerError('AI generation took too long or failed. Please try again or use Normal mode.');
+    }
     finally { setLoadingQuestions(false); }
   }, [questionType]);
 
@@ -187,33 +211,58 @@ export default function InterviewScreen() {
           ) : (
             <View>
               <Text style={styles.sectionTitle}>{selectedDomain?.name}</Text>
-              {questionType === 'quiz' ? (
-                <QuizQuestionCard
-                  question={questions[currentIndex] || null}
-                  index={currentIndex}
-                  total={questions.length}
-                  userAnswer={userAnswers[currentIndex] || ''}
-                  onAnswerChange={handleAnswerChange}
-                />
+              {(innerError || questions.length === 0) ? (
+                <>
+                  <View style={styles.errorCard}>
+                    <Text style={styles.errorCardText}>{innerError || 'No questions available yet.'}</Text>
+                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                      <Pressable style={[styles.secondaryButton, { marginRight: 6 }]} onPress={resetSession}>
+                        <Text style={styles.secondaryButtonText}>Back</Text>
+                      </Pressable>
+                      <Pressable style={[styles.primaryButton, { marginLeft: 6 }]} onPress={() => {
+                        if (mode === 'ai') {
+                          const n = parseInt(questionCount, 10) || 5;
+                          generateAIQuestions(selectedDomain, n);
+                        } else {
+                          loadQuestionsForDomain(selectedDomain);
+                        }
+                      }}>
+                        <Text style={styles.primaryButtonText}>Retry</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </>
               ) : (
-                <QuestionCard
-                  question={questions[currentIndex] || null}
-                  index={currentIndex}
-                  total={questions.length}
-                  userAnswer={userAnswers[currentIndex] || ''}
-                  onAnswerChange={handleAnswerChange}
-                  showHint={false}
-                  onToggleHint={() => {}}
-                />
+                <>
+                  {questionType === 'quiz' ? (
+                    <QuizQuestionCard
+                      question={questions[currentIndex] || null}
+                      index={currentIndex}
+                      total={questions.length}
+                      userAnswer={userAnswers[currentIndex] || ''}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ) : (
+                    <QuestionCard
+                      question={questions[currentIndex] || null}
+                      index={currentIndex}
+                      total={questions.length}
+                      userAnswer={userAnswers[currentIndex] || ''}
+                      onAnswerChange={handleAnswerChange}
+                      showHint={false}
+                      onToggleHint={() => {}}
+                    />
+                  )}
+                  <NavigationButtons
+                    currentIndex={currentIndex}
+                    total={questions.length}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
+                    onBack={resetSession}
+                    onSubmit={handleSubmit}
+                  />
+                </>
               )}
-              <NavigationButtons
-                currentIndex={currentIndex}
-                total={questions.length}
-                onPrev={handlePrev}
-                onNext={handleNext}
-                onBack={resetSession}
-                onSubmit={handleSubmit}
-              />
             </View>
           )}
         </>
@@ -264,6 +313,8 @@ const styles = StyleSheet.create({
   domainItem: { flex: 1, margin: 8 },
   noData: { color: '#a3a3a3', textAlign: 'center', marginTop: 24 },
   errorText: { color: '#ef4444', fontSize: 16, marginBottom: 16 },
+  errorCard: { backgroundColor: '#23272e', padding: 24, borderRadius: 22, borderWidth: 1.5, borderColor: '#334155', marginBottom: 18 },
+  errorCardText: { color: '#ef4444', fontSize: 16, marginBottom: 8 },
   primaryButton: { backgroundColor: '#38bdf8', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
   primaryButtonText: { color: '#18181b', fontWeight: '800' },
   secondaryButton: { backgroundColor: '#23272e', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },

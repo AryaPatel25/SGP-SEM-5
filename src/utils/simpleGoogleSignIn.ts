@@ -1,4 +1,4 @@
-import * as AuthSession from 'expo-auth-session';
+import { AuthRequest, ResponseType, makeRedirectUri } from 'expo-auth-session';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
@@ -35,36 +35,35 @@ export const simpleGoogleSignIn = async (): Promise<GoogleSignInResult> => {
     const useProxy = Platform.OS !== 'web';
     const clientId = getGoogleClientId(useProxy);
 
-    const redirectUri = AuthSession.makeRedirectUri({ scheme: 'interviewx'});
+    const redirectUri = makeRedirectUri({ scheme: 'interviewx'});
 
     const bytesToHex = (bytes: Uint8Array) => Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
     const nonce = bytesToHex(await Crypto.getRandomBytesAsync(16));
     const state = bytesToHex(await Crypto.getRandomBytesAsync(16));
 
-    const queryParams = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: 'id_token',
-      scope: 'openid profile email',
-      include_granted_scopes: 'true',
-      prompt: 'select_account',
-      state,
-      nonce,
+    const discovery = {
+      authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+    } as const;
+
+    const request = new AuthRequest({
+      clientId,
+      responseType: ResponseType.IdToken,
+      redirectUri,
+      scopes: ['openid', 'profile', 'email'],
+      extraParams: { nonce, prompt: 'select_account', state },
     });
 
-    const authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
-    const authUrl = `${authorizationEndpoint}?${queryParams.toString()}`;
-
-    // startAsync API signature differs by platform/SDK; keep a conservative call
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const result = await (AuthSession as any).startAsync({ authUrl, returnUrl: redirectUri });
+    await request.makeAuthUrlAsync(discovery);
+    const promptOptions = Platform.OS !== 'web' ? ({ useProxy: true } as any) : undefined;
+    const result = await request.promptAsync(discovery, promptOptions);
 
     if (result.type !== 'success') {
       return { success: false, error: 'Google Sign-In was cancelled.' };
     }
 
-    const idToken = (result.params as any)?.id_token;
+    const idToken = (result.params as any)?.id_token || (result as any)?.authentication?.idToken;
     if (!idToken) {
       return { success: false, error: 'Google ID token not returned.' };
     }

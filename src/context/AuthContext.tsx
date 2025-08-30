@@ -59,7 +59,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const convertFirebaseUser = (firebaseUser: FirebaseUser): User => {
   return {
     id: firebaseUser.uid,
-    fullName: firebaseUser.displayName || 'User',
+    fullName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
     email: firebaseUser.email || '',
     phone: firebaseUser.phoneNumber || undefined,
     createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
@@ -76,7 +76,7 @@ const fetchUserFromFirestore = async (uid: string): Promise<User | null> => {
       const data = userDoc.data();
       return {
         id: uid,
-        fullName: data.fullName || 'User',
+        fullName: data.fullName || (data.email ? String(data.email).split('@')[0] : 'User'),
         email: data.email || '',
         phone: data.phone || undefined,
         createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),

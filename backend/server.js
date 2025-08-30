@@ -2,7 +2,6 @@ import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
-import FormData from 'form-data';
 import fs from 'fs'; // Added missing import for fs
 import multer from 'multer';
 
@@ -152,49 +151,44 @@ app.post('/generate-sample-answer', async (req, res) => {
 });
 
 // Speech-to-Text endpoint using OpenAI Whisper API
+// Speech-to-Text endpoint using Deepgram API
 app.post('/speech-to-text', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No audio file provided' });
     }
 
-    // Read the audio file
-    const audioFile = fs.readFileSync(req.file.path);
+    // Stream the uploaded file directly to Deepgram
+    const mimetype = req.file.mimetype || 'audio/m4a';
+    const audioStream = fs.createReadStream(req.file.path);
 
-    // OpenAI Whisper API request
-    const formData = new FormData();
-    formData.append('file', audioFile, {
-      filename: 'audio.wav',
-      contentType: 'audio/wav'
-    });
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'en');
-
-    const speechResponse = await axios.post(
-      'https://api.openai.com/v1/audio/transcriptions',
-      formData,
+    const dgResponse = await axios.post(
+      'https://api.deepgram.com/v1/listen?smart_format=true&model=nova-2&punctuate=true',
+      audioStream,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          'Authorization': `Token ${process.env.DEEPGRAM_API_KEY}`,
+          'Content-Type': mimetype,
+        },
+        maxBodyLength: Infinity,
       }
     );
 
     // Clean up the uploaded file
     fs.unlinkSync(req.file.path);
 
-    const transcription = speechResponse.data.text || '';
-    res.json({ text: transcription });
+    const transcript =
+      dgResponse.data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+
+    return res.json({ text: transcript });
   } catch (error) {
-    console.error('Speech-to-text error:', error.response?.data || error.message);
-    
-    // Clean up the uploaded file if it exists
+    console.error('Deepgram STT error:', error.response?.data || error.message);
+
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
-    res.status(500).json({ error: 'Failed to convert speech to text' });
+
+    return res.status(500).json({ error: 'Failed to convert speech to text' });
   }
 });
 

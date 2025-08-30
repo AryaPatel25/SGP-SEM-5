@@ -10,6 +10,7 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
+import { buildBackendUrl } from '../../src/utils/backendUrl';
 
 const QuestionCard = React.memo(({ 
   question, 
@@ -73,7 +74,7 @@ const QuestionCard = React.memo(({
         name: 'recording.m4a'
       });
 
-      const response = await fetch('http://10.70.32.90:5000/speech-to-text', {
+      const response = await fetch(buildBackendUrl('/speech-to-text'), {
         method: 'POST',
         body: formData,
         headers: {

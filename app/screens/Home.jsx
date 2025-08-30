@@ -47,7 +47,7 @@ export default function Home() {
     <View style={styles.pageContainer}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Welcome{user ? `, ${user.fullName}` : ''} 👋</Text>
+          <Text style={styles.pageTitle}>Welcome{user ? `, ${user.fullName || (user.email ? user.email.split('@')[0] : 'User')}` : ''} 👋</Text>
           <Pressable style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
           </Pressable>
