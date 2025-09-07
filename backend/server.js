@@ -1,6 +1,7 @@
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import ExcelJS from 'exceljs';
 import express from 'express';
 import fs from 'fs'; // Added missing import for fs
 import multer from 'multer';
@@ -189,6 +190,80 @@ app.post('/speech-to-text', upload.single('audio'), async (req, res) => {
     }
 
     return res.status(500).json({ error: 'Failed to convert speech to text' });
+  }
+});
+
+// Parse Excel quiz via backend (preferred for RN reliability)
+app.post('/parse-excel', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, errors: ['No file uploaded'] });
+  }
+  const filePath = req.file.path;
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({ success: false, errors: ['No worksheet found'] });
+    }
+    const questions = [];
+    const errors = [];
+    const firstRow = worksheet.getRow(1);
+    const isHeader = String(firstRow.getCell(1).value || '').toLowerCase().includes('question');
+    const startRow = isHeader ? 2 : 1;
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber < startRow) return;
+      const q = String(row.getCell(1).value || '').trim();
+      const o1 = String(row.getCell(2).value || '').trim();
+      const o2 = String(row.getCell(3).value || '').trim();
+      const o3 = String(row.getCell(4).value || '').trim();
+      const o4 = String(row.getCell(5).value || '').trim();
+      const ca = String(row.getCell(6).value || '').trim();
+      if (!q) return;
+      const options = [o1, o2, o3, o4].filter(Boolean);
+      const caNum = parseInt(ca);
+      if (!options.length || isNaN(caNum) || caNum < 1 || caNum > options.length) {
+        errors.push(`Row ${rowNumber}: Invalid row or correct answer`);
+        return;
+      }
+      questions.push({ question: q, options, correctAnswer: caNum - 1 });
+    });
+    fs.unlink(filePath, () => {});
+    if (!questions.length && !errors.length) errors.push('No valid questions found');
+    return res.json({ success: errors.length === 0, questions, errors, warnings: [] });
+  } catch (e) {
+    try { fs.unlink(filePath, () => {}); } catch {}
+    return res.status(500).json({ success: false, questions: [], errors: [String(e)], warnings: [] });
+  }
+});
+
+// Sample Excel template download
+app.get('/sample-excel', async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Quiz Questions');
+    worksheet.addRow(['Question', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'Correct Answer']);
+    const header = worksheet.getRow(1);
+    header.font = { bold: true };
+    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+    const rows = [
+      ['What is the capital of France?', 'London', 'Berlin', 'Paris', 'Madrid', 3],
+      ['Which programming language is known for web development?', 'Python', 'JavaScript', 'C++', 'Java', 2],
+      ['What does HTML stand for?', 'HyperText Markup Language', 'High Tech Modern Language', 'Home Tool Markup Language', 'Hyperlink and Text Markup Language', 1],
+      ['Which of the following is NOT a JavaScript data type?', 'String', 'Number', 'Boolean', 'Float', 4],
+      ['What is the time complexity of accessing an element in an array by index?', 'O(1)', 'O(n)', 'O(log n)', 'O(n²)', 1],
+    ];
+    rows.forEach(r => worksheet.addRow(r));
+    worksheet.columns.forEach(col => { col.width = 20; });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="quiz_template.xlsx"');
+    return res.send(Buffer.from(buffer));
+  } catch (e) {
+    console.error('Sample excel error:', e);
+    return res.status(500).json({ error: 'Failed to generate sample excel' });
   }
 });
 

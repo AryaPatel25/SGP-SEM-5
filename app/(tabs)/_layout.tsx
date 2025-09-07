@@ -37,12 +37,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="interview"
+        name="interview/index"
         options={{
           title: 'Interview',
           tabBarIcon: (props) => (
             <Ionicons name="chatbubbles" size={props.size ?? 20} color={props.color ?? '#94a3b8'} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="custom-quiz"
+        options={{
+          // Hide from the tab bar but keep it routable
+          href: null,
+          title: 'Custom Quiz',
         }}
       />
     </Tabs>

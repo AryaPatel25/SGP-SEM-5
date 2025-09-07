@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -49,10 +49,10 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Animations
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-  const logoScale = new Animated.Value(0.8);
+  // Animations (persist across re-renders)
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -111,33 +111,37 @@ export default function LoginScreen() {
     <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Logo Section stays fixed */}
-        <Animated.View
-          style={[
-            styles.logoContainer,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
+        {/* Logo Section - Fixed at top */}
+        <View style={styles.logoSection}>
           <Animated.View
-            style={[styles.logo, { transform: [{ scale: logoScale }] }]}
+            style={[
+              styles.logoContainer,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
           >
-            <LinearGradient
-              colors={["#6366f1", "#8b5cf6"]}
-              style={styles.logoGradient}
+            <Animated.View
+              style={[styles.logo, { transform: [{ scale: logoScale }] }]}
             >
-              <Text style={styles.logoText}>AI</Text>
-            </LinearGradient>
+              <LinearGradient
+                colors={["#6366f1", "#8b5cf6"]}
+                style={styles.logoGradient}
+              >
+                <Text style={styles.logoText}>AI</Text>
+              </LinearGradient>
+            </Animated.View>
+            <Text style={styles.appTitle}>Job Interview Trainer</Text>
+            <Text style={styles.subtitle}>
+              Master your interview skills with AI
+            </Text>
           </Animated.View>
-          <Text style={styles.appTitle}>Job Interview Trainer</Text>
-          <Text style={styles.subtitle}>
-            Master your interview skills with AI
-          </Text>
-        </Animated.View>
+        </View>
 
         {/* Scrollable Form */}
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -260,11 +264,21 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
+  logoSection: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: { 
+    paddingHorizontal: 24, 
+    paddingBottom: 40,
+    flexGrow: 1,
+  },
   logoContainer: {
     alignItems: "center",
-    marginTop: 60,
-    marginBottom: 20,
   },
   logo: {
     width: 90,

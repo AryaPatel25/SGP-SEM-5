@@ -1,4 +1,5 @@
 // app/(tabs)/interview/index.jsx
+import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -42,6 +43,7 @@ const SAMPLE_DOMAINS = [
 ];
 
 export default function InterviewScreen() {
+  const router = useRouter();
   const [mode, setMode] = useState('normal');
   const [questionType, setQuestionType] = useState('descriptive');
   const [domains, setDomains] = useState([]);
@@ -168,14 +170,21 @@ export default function InterviewScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.pageTitle}>Interview Practice</Text>
-      <View style={styles.row}>
-        <Pressable style={[styles.toggle, mode === 'normal' && styles.toggleActive]} onPress={() => { resetSession(); setMode('normal'); }}>
-          <Text style={[styles.toggleText, mode === 'normal' && styles.toggleTextActive]}>Normal</Text>
-        </Pressable>
-        <Pressable style={[styles.toggle, mode === 'ai' && styles.toggleActive]} onPress={() => { resetSession(); setMode('ai'); }}>
-          <Text style={[styles.toggleText, mode === 'ai' && styles.toggleTextActive]}>AI Generate</Text>
-        </Pressable>
-      </View>
+       <View style={styles.row}>
+         <Pressable style={[styles.toggle, mode === 'normal' && styles.toggleActive]} onPress={() => { resetSession(); setMode('normal'); }}>
+           <Text style={[styles.toggleText, mode === 'normal' && styles.toggleTextActive]}>Normal</Text>
+         </Pressable>
+         <Pressable style={[styles.toggle, mode === 'ai' && styles.toggleActive]} onPress={() => { resetSession(); setMode('ai'); }}>
+           <Text style={[styles.toggleText, mode === 'ai' && styles.toggleTextActive]}>AI Generate</Text>
+         </Pressable>
+         <Pressable style={[styles.toggle, mode === 'custom' && styles.toggleActive]} onPress={() => { 
+           resetSession(); 
+           setMode('custom');
+           router.push('/(tabs)/custom-quiz');
+         }}>
+           <Text style={[styles.toggleText, mode === 'custom' && styles.toggleTextActive]}>Custom Quiz</Text>
+         </Pressable>
+       </View>
       <View style={styles.row}>
         <Pressable style={[styles.toggle, questionType === 'descriptive' && styles.toggleActive]} onPress={() => { resetSession(); setQuestionType('descriptive'); }}>
           <Text style={[styles.toggleText, questionType === 'descriptive' && styles.toggleTextActive]}>Descriptive</Text>
