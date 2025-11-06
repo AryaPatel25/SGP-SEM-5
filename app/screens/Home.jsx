@@ -1,7 +1,16 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useAuth } from '../../src/context/AuthContext';
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useEffect } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import { useAuth } from "../../src/context/AuthContext";
 
 export default function Home() {
   const router = useRouter();
@@ -13,16 +22,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
+      router.replace("/login");
     }
   }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.replace('/login');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      router.replace("/login");
+    } catch (_error) {
+      Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
 
@@ -38,17 +47,37 @@ export default function Home() {
   if (!isAuthenticated) {
     return (
       <View style={styles.loadingContainer}>
-      <Text style={styles.loadingText}>Not authenticated, redirecting...</Text>
-    </View>
-  );
+        <Text style={styles.loadingText}>
+          Not authenticated, redirecting...
+        </Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.pageContainer}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Welcome{user ? `, ${user.fullName || (user.email ? user.email.split('@')[0] : 'User')}` : ''} 👋</Text>
-          <Pressable style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]} onPress={handleLogout}>
+          <Text style={styles.pageTitle}>
+            Welcome
+            {user
+              ? `, ${
+                  user.fullName ||
+                  (user.email ? user.email.split("@")[0] : "User")
+                }`
+              : ""}{" "}
+            👋
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.logoutButton,
+              pressed && styles.logoutButtonPressed,
+            ]}
+            onPress={handleLogout}
+          >
             <Text style={styles.logoutButtonText}>Logout</Text>
           </Pressable>
         </View>
@@ -59,10 +88,20 @@ export default function Home() {
             Choose your domain and start practicing with real-time feedback.
           </Text>
           <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            onPress={() => router.push('/(tabs)/interview')}
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={() => router.push("/(tabs)/interview")}
           >
-            <Text style={styles.buttonText}>Start Interview</Text>
+            <LinearGradient
+              colors={["#8b5cf6", "#3b82f6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>Start Interview</Text>
+            </LinearGradient>
           </Pressable>
         </View>
 
@@ -71,21 +110,45 @@ export default function Home() {
           <Text style={styles.subtitle}>
             Review your performance and track your progress.
           </Text>
-          <Pressable 
-            style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}
-            onPress={() => router.push('/(tabs)/dashboard')}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={() => router.push("/(tabs)/dashboard")}
           >
-            <Text style={styles.buttonTextAlt}>View Progress</Text>
+            <LinearGradient
+              colors={["#8b5cf6", "#3b82f6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>View Progress</Text>
+            </LinearGradient>
           </Pressable>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>Tips & Resources</Text>
           <Text style={styles.subtitle}>
-            Improve your answers with voice clarity, confidence, and content quality.
+            Improve your answers with voice clarity, confidence, and content
+            quality.
           </Text>
-          <Pressable style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}>
-            <Text style={styles.buttonTextAlt}>View Tips</Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <LinearGradient
+              colors={["#8b5cf6", "#3b82f6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>View Tips</Text>
+            </LinearGradient>
           </Pressable>
         </View>
       </ScrollView>
@@ -96,117 +159,114 @@ export default function Home() {
 const styles = StyleSheet.create({
   pageContainer: {
     flex: 1,
-    backgroundColor: '#18181b', // true black/dark grey
+    backgroundColor: "#0f0f12", // fallback
   },
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: 32,
-    marginBottom: 18,
-    justifyContent: 'space-between',
+    marginBottom: 24,
   },
   pageTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
     letterSpacing: 0.5,
     flex: 1,
   },
   logoutButton: {
-    backgroundColor: '#23272e',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
-    marginLeft: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.10,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 12,
+    backgroundColor: "rgba(36,36,40,0.7)",
+    borderWidth: 1,
+    borderColor: "#27272a",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   logoutButtonPressed: {
-    backgroundColor: '#ef4444',
+    backgroundColor: "#ef4444",
   },
   logoutButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   card: {
-    backgroundColor: '#23272e',
-    padding: 20,
-    borderRadius: 18,
+    backgroundColor: "rgba(36,36,40,0.85)",
+    borderRadius: 22,
+    padding: 22,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#27272a",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   title: {
-    fontSize: 19,
-    color: '#fff',
-    fontWeight: 'bold',
+    fontSize: 22,
+    color: "#fff",
+    fontWeight: "800",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#a3a3a3',
-    marginBottom: 14,
+    fontSize: 15,
+    color: "#a1a1aa",
+    marginBottom: 16,
   },
   button: {
-    backgroundColor: '#38bdf8',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 2,
-    shadowColor: '#38bdf8',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 6,
+  },
+  buttonGradient: {
+    paddingVertical: 14,
+    alignItems: "center",
   },
   buttonPressed: {
-    backgroundColor: '#0ea5e9',
+    opacity: 0.8,
   },
   outlineButton: {
-    borderColor: '#38bdf8',
+    borderRadius: 14,
     borderWidth: 1.5,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    marginTop: 2,
+    borderColor: "#60a5fa",
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 6,
   },
   outlineButtonPressed: {
-    backgroundColor: '#23272e',
-    borderColor: '#0ea5e9',
+    backgroundColor: "#18181b",
+    borderColor: "#3b82f6",
   },
   buttonText: {
-    color: '#18181b',
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 0.5,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
   },
   buttonTextAlt: {
-    color: '#38bdf8',
-    fontWeight: '700',
-    fontSize: 15,
-    letterSpacing: 0.5,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#60a5fa",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#18181b',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0f0f12",
   },
   loadingText: {
-    color: '#fff',
     fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
     marginTop: 12,
   },
 });
-

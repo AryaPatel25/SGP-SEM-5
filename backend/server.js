@@ -1,18 +1,31 @@
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import express from 'express';
 import fs from 'fs'; // Added missing import for fs
 import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Ensure uploads directory exists and serve it statically
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
+
 // Configure multer for file uploads
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: uploadsDir });
 
 function parseQuizQuestions(text) {
   // Split by question number
@@ -113,7 +126,7 @@ app.post('/generate-question', async (req, res) => {
 
 app.post('/evaluate-answer', async (req, res) => {
   const { userAnswer, modelAnswer } = req.body;
-  const prompt = `\nCompare the following user answer to the model answer. Give a score from 0 to 10 and a short feedback.\nModel answer: ${modelAnswer}\nUser answer: ${userAnswer}\nRespond in JSON: {"score": <number>, "feedback": "<short feedback>"}`;
+  const prompt = `\nCompare the following user answer to the model answer. Score from 0 to 10 and provide concise, polite, and constructive feedback focused on how to improve.\nTone & style rules:\n- Use second person voice addressing the candidate as \'you\' (never \'the user\' or third person).\n- Be direct, empathetic, and actionable.\n- Keep feedback to 1-2 sentences.\nModel answer: ${modelAnswer}\nUser answer: ${userAnswer}\nRespond ONLY in pure JSON (no code fences, no extra text): {"score": <number 0-10>, "feedback": "<1-2 sentences in second person, polite and productive>"}`;
   try {
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -121,12 +134,20 @@ app.post('/evaluate-answer', async (req, res) => {
         contents: [{ parts: [{ text: prompt }] }]
       }
     );
-    const text = response.data.candidates[0].content.parts[0].text;
+    let text = response.data.candidates[0].content.parts[0].text || '';
+    // Clean code fences if present
+    text = text.replace(/^```[a-zA-Z]*\n?/m, '').replace(/```\s*$/m, '');
     let result;
     try {
       result = JSON.parse(text);
     } catch {
-      result = { score: null, feedback: text };
+      // Try to extract json substring
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { result = JSON.parse(match[0]); } catch { result = { score: null, feedback: text }; }
+      } else {
+        result = { score: null, feedback: text };
+      }
     }
     res.json(result);
   } catch (error) {
@@ -151,7 +172,6 @@ app.post('/generate-sample-answer', async (req, res) => {
   }
 });
 
-// Speech-to-Text endpoint using OpenAI Whisper API
 // Speech-to-Text endpoint using Deepgram API
 app.post('/speech-to-text', upload.single('audio'), async (req, res) => {
   try {
@@ -238,33 +258,31 @@ app.post('/parse-excel', upload.single('file'), async (req, res) => {
   }
 });
 
-// Sample Excel template download
-app.get('/sample-excel', async (req, res) => {
+// Upload mock interview video
+app.post('/upload-interview', upload.single('video'), async (req, res) => {
   try {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Quiz Questions');
-    worksheet.addRow(['Question', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'Correct Answer']);
-    const header = worksheet.getRow(1);
-    header.font = { bold: true };
-    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
-    const rows = [
-      ['What is the capital of France?', 'London', 'Berlin', 'Paris', 'Madrid', 3],
-      ['Which programming language is known for web development?', 'Python', 'JavaScript', 'C++', 'Java', 2],
-      ['What does HTML stand for?', 'HyperText Markup Language', 'High Tech Modern Language', 'Home Tool Markup Language', 'Hyperlink and Text Markup Language', 1],
-      ['Which of the following is NOT a JavaScript data type?', 'String', 'Number', 'Boolean', 'Float', 4],
-      ['What is the time complexity of accessing an element in an array by index?', 'O(1)', 'O(n)', 'O(log n)', 'O(n²)', 1],
-    ];
-    rows.forEach(r => worksheet.addRow(r));
-    worksheet.columns.forEach(col => { col.width = 20; });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="quiz_template.xlsx"');
-    return res.send(Buffer.from(buffer));
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No video uploaded' });
+    }
+    const filePath = `/uploads/${req.file.filename}`;
+    return res.json({ success: true, file: filePath, originalName: req.file.originalname });
   } catch (e) {
-    console.error('Sample excel error:', e);
-    return res.status(500).json({ error: 'Failed to generate sample excel' });
+    console.error('Upload interview error:', e);
+    return res.status(500).json({ success: false, error: 'Failed to upload video' });
   }
+});
+
+// Sample Excel template download
+app.get('/sample-excel', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'quiz_template.xlsx');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="quiz_template.xlsx"');
+  res.sendFile(filePath, err => {
+    if (err) {
+      console.error('Sample excel error:', err);
+      res.status(500).json({ error: 'Failed to send sample excel' });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
-    Dimensions,
     ScrollView,
     StyleSheet,
     Text,
@@ -279,7 +278,7 @@ const InterviewResults = ({
   );
 };
 
-const { width } = Dimensions.get('window');
+// const { width } = Dimensions.get('window'); // Unused for now
 
 const styles = StyleSheet.create({
   container: {

@@ -74,23 +74,25 @@ export const Theme = {
     },
   },
   dark: {
-    background: '#0a0a0a',
-    surface: '#1a1a1a',
-    surfaceAlt: '#252525',
-    border: '#333333',
-    textPrimary: '#ffffff',
-    textSecondary: '#a0a0a0',
-    accent: '#6366f1',
+    // Aligned with website's dark-dawn palette (HSL-based design translated to hex)
+    background: '#0e1012', // hsl(240 8% 6%)
+    surface: '#15171a', // hsl(240 8% 9%)
+    surfaceAlt: '#1e2024', // slightly lighter than surface
+    border: '#2a2d34', // hsl(245 10% 18%)
+    textPrimary: '#ECEDEE', // hsl(240 6% 95%)
+    textSecondary: '#A3A7AD', // hsl(240 5% ~65%)
+    accent: '#9B5CFB', // primary: hsl(265 85% 65%)
     success: '#10b981',
     warning: '#f59e0b',
     danger: '#ef4444',
     radius: 12,
     gradient: {
-      primary: ['#6366f1', '#8b5cf6'],
-      secondary: ['#3b82f6', '#6366f1'],
-      accent: ['#f59e0b', '#ef4444'],
-      surface: ['#1a1a1a', '#252525'],
-      glass: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)'],
+      // primary: purple to electric blue
+      primary: ['#9B5CFB', '#34B9FF'], // hsl(265 85% 65%) → hsl(210 95% 60%)
+      secondary: ['#242033', '#17181c'], // deep muted purple tones
+      accent: ['#9B5CFB', '#34B9FF'],
+      surface: ['#15171a', '#1e2024'],
+      glass: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.05)'],
     },
     shadow: {
       soft: {
@@ -114,10 +116,25 @@ export const Theme = {
         shadowRadius: 16,
         elevation: 8,
       },
+      // Additional glow-like shadows to emulate web design glows
+      glowPrimary: {
+        shadowColor: 'rgba(155, 92, 251, 0.25)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 24,
+        elevation: 0,
+      },
+      glowAccent: {
+        shadowColor: 'rgba(52, 185, 255, 0.25)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 20,
+        elevation: 0,
+      },
     },
     glass: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      border: 'rgba(255, 255, 255, 0.2)',
+      background: 'rgba(255, 255, 255, 0.08)',
+      border: 'rgba(255, 255, 255, 0.18)',
     },
   },
 };

@@ -210,6 +210,13 @@ export class DashboardService {
       // Update progress
       await this.updateUserProgress(userId, interviewData);
 
+      // After updating progress, evaluate and award achievements
+      try {
+        await this.checkAndAwardAchievements(userId);
+      } catch (e) {
+        console.warn('DashboardService: checkAndAwardAchievements failed', e);
+      }
+
       // Also update denormalized stats on user document for quick dashboard reads
       try {
         const currentDate = new Date().toISOString();
@@ -346,6 +353,119 @@ export class DashboardService {
       console.error('Error awarding achievement:', error);
       throw error;
     }
+  }
+
+  // Compute recommendations and auto-award achievements based on recent stats
+  static async checkAndAwardAchievements(userId: string) {
+    // Read current data
+    const [stats, progress, activities, earned] = await Promise.all([
+      this.getUserStats(userId),
+      this.getUserProgress(userId),
+      this.getUserActivity(userId, 100),
+      this.getUserAchievements(userId),
+    ]);
+
+    const already = new Set(earned.map((a: any) => a.title));
+
+    // Rules
+    const rules: Array<{title: string; description: string; predicate: () => boolean; icon?: string}> = [
+      {
+        title: 'First Interview',
+        description: 'Complete your first interview',
+        predicate: () => stats.totalInterviews >= 1,
+        icon: '🎯',
+      },
+      {
+        title: 'Consistency Starter',
+        description: 'Practice 3 days in the last week',
+        predicate: () => {
+          const days = new Set(
+            activities
+              .filter((a: any) => a.type === 'interview_completed')
+              .map((a: any) => String(a.timestamp).slice(0, 10))
+          );
+          return days.size >= 3;
+        },
+        icon: '📅',
+      },
+      {
+        title: 'High Achiever',
+        description: 'Reach an average score of 80%+',
+        predicate: () => stats.averageScore >= 80,
+        icon: '🎖️',
+      },
+      {
+        title: 'Domain Explorer',
+        description: 'Practice in 3+ different domains',
+        predicate: () => (progress?.domainProgress || []).length >= 3,
+        icon: '🌟',
+      },
+    ];
+
+    for (const rule of rules) {
+      if (!already.has(rule.title) && rule.predicate()) {
+        await this.awardAchievement(userId, {
+          id: rule.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          type: 'auto',
+          title: rule.title,
+          description: rule.description,
+          icon: rule.icon,
+        });
+      }
+    }
+  }
+
+  // Provide recommendations (not yet earned) to display in UI
+  static async getRecommendedAchievements(userId: string) {
+    const [stats, progress, activities, earned] = await Promise.all([
+      this.getUserStats(userId),
+      this.getUserProgress(userId),
+      this.getUserActivity(userId, 100),
+      this.getUserAchievements(userId),
+    ]);
+    const earnedSet = new Set(earned.map((a: any) => a.title));
+
+    const recs: Array<{title: string; description: string; action: string; icon?: string}> = [];
+
+    if (!earnedSet.has('First Interview')) {
+      recs.push({
+        title: 'First Interview',
+        description: 'Complete your first interview to unlock this badge.',
+        action: 'Start an interview from the Dashboard.',
+        icon: '🎯',
+      });
+    }
+    if (stats.averageScore < 80 && !earnedSet.has('High Achiever')) {
+      recs.push({
+        title: 'High Achiever',
+        description: 'Reach an average score of 80%+. You are at ' + Math.round(stats.averageScore) + '%.',
+        action: 'Retake domains with lower scores and aim for >80%.',
+        icon: '🎖️',
+      });
+    }
+    const days = new Set(
+      activities
+        .filter((a: any) => a.type === 'interview_completed')
+        .map((a: any) => String(a.timestamp).slice(0, 10))
+    );
+    if (days.size < 3 && !earnedSet.has('Consistency Starter')) {
+      recs.push({
+        title: 'Consistency Starter',
+        description: 'Practice on 3 different days within a week.',
+        action: 'Practice today and two more days this week.',
+        icon: '📅',
+      });
+    }
+    if ((progress?.domainProgress || []).length < 3 && !earnedSet.has('Domain Explorer')) {
+      recs.push({
+        title: 'Domain Explorer',
+        description: 'Practice in 3 different domains.',
+        action: 'Try domains you have not attempted yet.',
+        icon: '🌟',
+      });
+    }
+
+    return recs;
   }
 
   // Get user statistics

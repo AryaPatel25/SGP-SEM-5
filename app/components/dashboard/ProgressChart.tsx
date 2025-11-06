@@ -14,10 +14,10 @@ const ProgressChart: React.FC = () => {
 
   const renderCircularProgress = (score: number, color: string, size: number = 60) => {
     const strokeWidth = 6;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const progress = (score / 100) * circumference;
-    const remaining = circumference - progress;
+    // const radius = (size - strokeWidth) / 2; // Unused for now
+    // const circumference = 2 * Math.PI * radius; // Unused for now
+    // const progress = (score / 100) * circumference; // Unused for now
+    // const remaining = circumference - progress; // Unused for now
 
     return (
       <View style={[styles.circleContainer, { width: size, height: size }]}>

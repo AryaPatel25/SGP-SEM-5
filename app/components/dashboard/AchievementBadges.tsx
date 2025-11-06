@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface Achievement {
   id: string;
@@ -24,12 +24,20 @@ const AchievementBadges: React.FC<AchievementBadgesProps> = ({ achievements }) =
       disabled={!item.unlocked}
     >
       <View style={styles.achievementIcon}>
-        <Text style={[
-          styles.iconText,
-          !item.unlocked && styles.iconTextLocked,
-        ]}>
-          {item.unlocked ? item.icon : '🔒'}
-        </Text>
+        {item.unlocked && item.icon && item.icon.startsWith('image:') ? (
+          <Image
+            source={{ uri: item.icon.replace('image:', '') }}
+            style={{ width: 24, height: 24 }}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={[
+            styles.iconText,
+            !item.unlocked && styles.iconTextLocked,
+          ]}>
+            {item.unlocked ? (item.icon || '🏆') : '🔒'}
+          </Text>
+        )}
       </View>
       <Text style={[
         styles.achievementTitle,

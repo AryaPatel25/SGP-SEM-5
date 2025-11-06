@@ -1,5 +1,5 @@
-import * as ExcelJS from 'exceljs';
-import * as FileSystem from 'expo-file-system';
+import ExcelJS from 'exceljs';
+import * as FileSystem from 'expo-file-system/legacy';
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   let binaryString: string;
@@ -9,7 +9,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
     binaryString = atob(base64);
   } else {
     // Fallback for environments that might provide Buffer (web/Expo web)
-    // eslint-disable-next-line no-undef
+    // @ts-ignore
     binaryString = Buffer.from(base64, 'base64').toString('binary');
   }
   const len = binaryString.length;

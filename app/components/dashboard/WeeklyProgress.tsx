@@ -13,7 +13,7 @@ interface WeeklyProgressProps {
 
 const WeeklyProgress: React.FC<WeeklyProgressProps> = ({ data }) => {
   const maxInterviews = Math.max(...data.map(d => d.interviews));
-  const maxScore = Math.max(...data.map(d => d.score));
+  // const maxScore = Math.max(...data.map(d => d.score)); // Unused for now
 
   return (
     <View style={styles.container}>

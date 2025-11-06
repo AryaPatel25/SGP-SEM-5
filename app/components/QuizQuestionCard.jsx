@@ -4,8 +4,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 const QuizQuestionCard = React.memo(({ question, index, total, userAnswer, onAnswerChange }) => {
   if (!question) return null;
 
-  const handleOptionSelect = (option) => {
-    onAnswerChange(index, option);
+  const handleOptionSelect = (optionIndex) => {
+    onAnswerChange(index, optionIndex);
   };
 
   return (
@@ -19,12 +19,12 @@ const QuizQuestionCard = React.memo(({ question, index, total, userAnswer, onAns
         {question.options && question.options.map((option, i) => (
           <TouchableOpacity
             key={i}
-            style={[styles.option, userAnswer === option && styles.optionSelected]}
-            onPress={() => handleOptionSelect(option)}
+            style={[styles.option, userAnswer === i && styles.optionSelected]}
+            onPress={() => handleOptionSelect(i)}
             accessibilityRole="button"
             accessibilityLabel={`Option ${i + 1}: ${option}`}
           >
-            <Text style={[styles.optionText, userAnswer === option && styles.optionTextSelected]}>{option}</Text>
+            <Text style={[styles.optionText, userAnswer === i && styles.optionTextSelected]}>{option}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -93,5 +93,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+
+QuizQuestionCard.displayName = 'QuizQuestionCard';
 
 export default QuizQuestionCard; 

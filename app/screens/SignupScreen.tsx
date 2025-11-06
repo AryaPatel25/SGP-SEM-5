@@ -4,22 +4,22 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
-import { useTheme } from "../../src/context/ThemeContext";
+// import { useTheme } from "../../src/context/ThemeContext"; // Unused for now
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 export default function SignupScreen() {
   const router = useRouter();
   const { signup, isLoading } = useAuth();
-  const { theme } = useTheme();
+  // const { theme } = useTheme(); // Unused for now
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

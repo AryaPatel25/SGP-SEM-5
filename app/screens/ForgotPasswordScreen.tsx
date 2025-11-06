@@ -10,14 +10,14 @@ import {
     View
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
-import { useTheme } from '../../src/context/ThemeContext';
+// import { useTheme } from '../../src/context/ThemeContext'; // Unused for now
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { forgotPassword, isLoading } = useAuth();
-  const { theme, isDarkMode } = useTheme();
+  // const { theme, isDarkMode } = useTheme(); // Unused for now
   const [email, setEmail] = useState('');
-  const [emailFocused, setEmailFocused] = useState(false);
+  // const [emailFocused, setEmailFocused] = useState(false); // Unused for now
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'success' | 'error' | null>(null);
 

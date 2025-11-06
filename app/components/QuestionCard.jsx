@@ -338,4 +338,6 @@ const styles = StyleSheet.create({
   },
 });
 
+QuestionCard.displayName = 'QuestionCard';
+
 export default QuestionCard; 

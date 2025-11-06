@@ -3,15 +3,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
+import GlassCard from '../../components/ui/GlassCard';
+import GradientButton from '../../components/ui/GradientButton';
 import { Theme } from '../../constants/Colors';
-import { useAuth } from '../../src/context/AuthContext';
+// import { useAuth } from '../../src/context/AuthContext'; // Unused for now
 import { buildBackendUrl } from '../../src/utils/backendUrl';
 import { parseExcelQuizFile, QuizQuestion, validateQuizQuestions } from '../../src/utils/excelParser';
 import ExcelUploader from '../components/ExcelUploader';
@@ -21,13 +23,17 @@ import QuizQuestionCard from '../components/QuizQuestionCard';
 
 export default function CustomQuizScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  // const { user } = useAuth(); // Unused for now
   const [currentStep, setCurrentStep] = useState<'upload' | 'quiz' | 'results'>('upload');
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: number }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [quizTitle, setQuizTitle] = useState('Custom Quiz');
+
+  // Cast JSX components from .jsx to typed components for TS
+  const QuizQuestionCardComponent = QuizQuestionCard as unknown as React.ComponentType<any>;
+  const NavigationButtonsComponent = NavigationButtons as unknown as React.ComponentType<any>;
 
   const handleFileSelected = async (fileUri: string, fileName: string) => {
     setIsLoading(true);
@@ -40,9 +46,10 @@ export default function CustomQuizScreen() {
       const endpoint = buildBackendUrl('/parse-excel');
       let parsedQuestions: QuizQuestion[] | null = null;
       try {
-        const resp = await fetch(endpoint, { method: 'POST', body: formData });
+        // Casts to satisfy React Native type gaps for fetch body
+        const resp = await fetch(endpoint as any, { method: 'POST', body: formData as any } as any);
         if (resp.ok) {
-          const data = await resp.json();
+          const data = (await resp.json()) as { success?: boolean; questions?: QuizQuestion[]; errors?: string[] };
           if (data && data.success && Array.isArray(data.questions)) {
             parsedQuestions = data.questions as QuizQuestion[];
           } else if (Array.isArray(data?.errors) && data.errors.length) {
@@ -51,7 +58,7 @@ export default function CustomQuizScreen() {
         } else {
           throw new Error(`Server error: ${resp.status}`);
         }
-      } catch (e) {
+      } catch (_e) {
         // Fallback to local parsing if backend fails
         const result = await parseExcelQuizFile(fileUri);
         if (!result.success) throw new Error(result.errors.join('\n'));
@@ -64,7 +71,7 @@ export default function CustomQuizScreen() {
       setQuestions(parsedQuestions || []);
       setQuizTitle(fileName.replace(/\.[^/.]+$/, "")); // Remove file extension
       setCurrentStep('quiz');
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to process the Excel file. Please check the format and try again.');
     } finally {
       setIsLoading(false);
@@ -154,7 +161,7 @@ export default function CustomQuizScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.progressContainer}>
+      <GlassCard style={styles.progressContainer}>
         <Text style={styles.progressText}>
           Question {currentIndex + 1} of {questions.length}
         </Text>
@@ -166,15 +173,17 @@ export default function CustomQuizScreen() {
             ]} 
           />
         </View>
-      </View>
+      </GlassCard>
 
-      <QuizQuestionCard
+      <QuizQuestionCardComponent
         question={questions[currentIndex]}
-        onAnswerSelect={(value) => handleAnswerSelect(currentIndex, value)}
-        selectedAnswer={userAnswers[currentIndex]}
+        index={currentIndex}
+        total={questions.length}
+        userAnswer={userAnswers[currentIndex]}
+        onAnswerChange={(index: number, value: number) => handleAnswerSelect(index, value)}
       />
 
-      <NavigationButtons
+      <NavigationButtonsComponent
         currentIndex={currentIndex}
         total={questions.length}
         onPrev={handlePrevious}
@@ -207,7 +216,7 @@ export default function CustomQuizScreen() {
         <View style={styles.resultsContainer}>
           <View style={styles.scoreCard}>
             <LinearGradient
-              colors={Theme.dark.gradient.primary}
+              colors={((Theme.dark.gradient.primary as unknown) as string[]).slice(0,2) as unknown as readonly [string, string]}
               style={styles.scoreGradient}
             >
               <Text style={styles.scoreText}>{score}%</Text>
@@ -231,35 +240,23 @@ export default function CustomQuizScreen() {
           </View>
 
           <View style={styles.actionsContainer}>
-            <Pressable
-              style={styles.actionButton}
+            <GradientButton
+              label="New Quiz"
               onPress={handleBackToUpload}
-            >
-              <LinearGradient
-                colors={Theme.dark.gradient.secondary}
-                style={styles.actionButtonGradient}
-              >
-                <Ionicons name="refresh" size={20} color="#ffffff" />
-                <Text style={styles.actionButtonText}>New Quiz</Text>
-              </LinearGradient>
-            </Pressable>
+              colors={((Theme.dark.gradient.secondary as unknown) as string[]).slice(0,2) as unknown as readonly [string, string]}
+              leftIcon={<Ionicons name="refresh" size={20} color="#ffffff" />}
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <GradientButton
+              label="Retake"
               onPress={() => {
                 setCurrentStep('quiz');
                 setCurrentIndex(0);
                 setUserAnswers({});
               }}
-            >
-              <LinearGradient
-                colors={Theme.dark.gradient.primary}
-                style={styles.actionButtonGradient}
-              >
-                <Ionicons name="play" size={20} color="#ffffff" />
-                <Text style={styles.actionButtonText}>Retake</Text>
-              </LinearGradient>
-            </Pressable>
+              colors={((Theme.dark.gradient.primary as unknown) as string[]).slice(0,2) as unknown as readonly [string, string]}
+              leftIcon={<Ionicons name="play" size={20} color="#ffffff" />}
+            />
           </View>
         </View>
       </View>

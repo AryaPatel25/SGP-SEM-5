@@ -4,23 +4,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    // Dimensions, // Unused for now
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useAuth } from "../../src/context/AuthContext";
-import { useTheme } from "../../src/context/ThemeContext";
+// import { useTheme } from "../../src/context/ThemeContext"; // Unused for now
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
-const { width } = Dimensions.get("window");
+// const { width } = Dimensions.get("window"); // Unused for now
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function LoginScreen() {
   } catch (error) {
     console.log("Auth context not available yet:", error);
   }
-  const { theme } = useTheme();
+  // const { theme } = useTheme(); // Unused for now
 
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -73,7 +73,7 @@ export default function LoginScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, logoScale, slideAnim]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -1,19 +1,22 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { DashboardService } from '../../firebase/dashboardService';
 import { useAuth } from '../../src/context/AuthContext';
 import AchievementBadges from '../components/dashboard/AchievementBadges';
-import ActivityFeed from '../components/dashboard/ActivityFeed';
-import ProgressChart from '../components/dashboard/ProgressChart';
 import StatsCard from '../components/dashboard/StatsCard';
-import WeeklyProgress from '../components/dashboard/WeeklyProgress';
+// Reports and deeper analytics moved to Reports tab
+import { LinearGradient } from 'expo-linear-gradient';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import GlassCard from '../../components/ui/GlassCard';
+import { Theme } from '../../constants/Colors';
+import { db } from '../../firebase/firebaseConfig';
 
 // Wrapper component to safely handle auth context
 function DashboardContent() {
@@ -57,16 +60,25 @@ function DashboardContent() {
       const userId = user?.id || 'user123';
       
       // Get data using the new service methods
-      const [stats, progress, weeklyProgress, achievements, activities] = await Promise.all([
+      const [stats, weeklyProgress, achievements, activities, progress, mockSessions] = await Promise.all([
         DashboardService.getUserStats(userId),
-        DashboardService.getUserProgress(userId),
+        // DashboardService.getUserProgress(userId), // Unused for now
         DashboardService.getWeeklyProgress(userId),
         DashboardService.getUserAchievements(userId),
-        DashboardService.getUserActivity(userId, 5)
+        DashboardService.getUserActivity(userId, 50),
+        DashboardService.getUserProgress(userId),
+        (async () => {
+          try {
+            const userRef = doc(db, 'users', userId);
+            const mockRef = collection(userRef, 'mockInterviews');
+            const snap = await getDocs(mockRef);
+            return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+          } catch { return []; }
+        })()
       ]);
 
       // Format activities for the dashboard
-      const recentActivity = (activities as any[]).map((activity: any) => ({
+      const recentActivity = (activities as any[]).slice(0, 5).map((activity: any) => ({
         id: activity.id,
         type: activity.type === 'interview_completed' ? 'interview_completed' as const : 'achievement_unlocked' as const,
         domain: activity.domain,
@@ -86,6 +98,124 @@ function DashboardContent() {
         unlockedAt: new Date(achievement.earnedAt),
       }));
 
+      // Build logical, motivating badge catalog combining earned and locked
+      const uniqueActiveDays = new Set(
+        (activities as any[])
+          .filter((a: any) => a.type === 'interview_completed')
+          .map((a: any) => String(a.timestamp).slice(0, 10))
+      ).size;
+      const domainsPracticed = (progress?.domainProgress || []).length || 0;
+      const earnedSet = new Set((achievements as any[]).map((a: any) => a.title));
+      const mockCount = Array.isArray(mockSessions) ? mockSessions.length : 0;
+      const byDayCount: Record<string, number> = {};
+      (activities as any[])
+        .filter((a: any) => a.type === 'interview_completed')
+        .forEach((a: any) => {
+          const day = String(a.timestamp).slice(0, 10);
+          byDayCount[day] = (byDayCount[day] || 0) + 1;
+        });
+      const maxInADay = Object.values(byDayCount).reduce((m, x) => Math.max(m, x as number), 0);
+
+      const catalog: Array<{ id: string; title: string; description: string; icon: string; unlocked: boolean; unlockedAt?: Date }>
+        = [
+        {
+          id: 'first-interview',
+          title: 'First Interview',
+          description: 'Complete your first interview',
+          icon: '🎯',
+          unlocked: stats.totalInterviews >= 1,
+          unlockedAt: undefined,
+        },
+        {
+          id: 'consistency-starter',
+          title: 'Consistency Starter',
+          description: 'Practice on 3 different days this week',
+          icon: '📅',
+          unlocked: uniqueActiveDays >= 3,
+        },
+        {
+          id: 'streak-builder',
+          title: 'Streak Builder',
+          description: 'Practice on 5 different days this week',
+          icon: '🧱',
+          unlocked: uniqueActiveDays >= 5,
+        },
+        {
+          id: 'streak-master',
+          title: 'Streak Master',
+          description: 'Practice on 7 days this week',
+          icon: '🥇',
+          unlocked: uniqueActiveDays >= 7,
+        },
+        {
+          id: 'on-a-roll',
+          title: 'On a Roll',
+          description: 'Complete 5 interviews',
+          icon: '🔥',
+          unlocked: stats.totalInterviews >= 5,
+        },
+        {
+          id: 'high-achiever',
+          title: 'High Achiever',
+          description: 'Reach an average score of 80%+',
+          icon: '🎖️',
+          unlocked: stats.averageScore >= 80,
+        },
+        {
+          id: 'domain-explorer',
+          title: 'Domain Explorer',
+          description: 'Practice in 3 different domains',
+          icon: '🌟',
+          unlocked: domainsPracticed >= 3,
+        },
+        {
+          id: 'mock-novice',
+          title: 'Mock Novice',
+          description: 'Complete 3 mock interview sessions',
+          icon: '🎬',
+          unlocked: mockCount >= 3,
+        },
+        {
+          id: 'mock-pro',
+          title: 'Mock Pro',
+          description: 'Complete 10 mock interview sessions',
+          icon: '🎥',
+          unlocked: mockCount >= 10,
+        },
+        {
+          id: 'sprinter',
+          title: 'Sprinter',
+          description: 'Complete 3 interviews in a single day',
+          icon: '⚡',
+          unlocked: maxInADay >= 3,
+        },
+        {
+          id: 'weekend-warrior',
+          title: 'Weekend Warrior',
+          description: 'Complete 2 interviews on a weekend',
+          icon: '🛡️',
+          unlocked: (weeklyProgress || []).some((d: any, idx: number) => {
+            // treat last two entries as weekend for display purposes
+            return idx >= (weeklyProgress.length - 2) && d.interviews >= 2;
+          }),
+        },
+      ];
+
+      // Merge earned achievements with catalog, prefer earned metadata
+      const mergedAchievements = catalog.map((badge) => {
+        const earned = (achievements as any[]).find((a: any) => a.title === badge.title);
+        return earned
+          ? {
+              id: earned.id,
+              title: earned.title,
+              description: earned.description,
+              icon: earned.icon || badge.icon,
+              unlocked: true,
+              unlockedAt: new Date(earned.earnedAt),
+            }
+          : badge;
+      });
+
       // Format weekly progress for the dashboard
       const formattedWeeklyProgress = (weeklyProgress as any[]).map((day: any) => ({
         day: new Date(day.date).toLocaleDateString('en', { weekday: 'short' }),
@@ -100,7 +230,7 @@ function DashboardContent() {
         timeSpent: Math.round(stats.totalInterviews * 15), // Estimated time
         weeklyProgress: formattedWeeklyProgress,
         recentActivity,
-        achievements: formattedAchievements,
+        achievements: mergedAchievements,
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -236,19 +366,28 @@ function DashboardContent() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.fullName || (user?.email ? user.email.split('@')[0] : 'User')} 👋</Text>
+      {/* Hero Header */}
+      <LinearGradient
+        colors={[Theme.dark.gradient.primary[0], Theme.dark.gradient.primary[1]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.heroRow}>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.userName}>{user?.fullName || (user?.email ? user.email.split('@')[0] : 'User')} 👋</Text>
+          </View>
+          <TouchableOpacity style={styles.refreshButton} onPress={loadDashboardData}>
+            <Text style={styles.refreshButtonText}>🔄</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={loadDashboardData}
-        >
-          <Text style={styles.refreshButtonText}>🔄</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.heroChips}>
+          <View style={styles.chip}><Text style={styles.chipText}>Interviews: {dashboardData.totalInterviews}</Text></View>
+          <View style={styles.chip}><Text style={styles.chipText}>Avg: {dashboardData.averageScore}%</Text></View>
+          <View style={styles.chip}><Text style={styles.chipText}>Time: {formatTime(dashboardData.timeSpent)}</Text></View>
+        </View>
+      </LinearGradient>
 
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
@@ -278,50 +417,74 @@ function DashboardContent() {
         />
       </View>
 
-      {/* Weekly Progress Chart */}
+      {/* Highlights moved to Reports. Keep Dashboard lightweight */}
+
+      {/* Today's Tips */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Progress</Text>
-        <WeeklyProgress data={dashboardData.weeklyProgress} />
+        <GlassCard>
+          <Text style={styles.sectionTitle}>Today's Tips</Text>
+          <View style={styles.tipCard}>
+            <Text style={styles.tipText}>• Focus one domain per session for better retention.</Text>
+            <Text style={styles.tipText}>• Aim for short, consistent practice (20–30 minutes).</Text>
+            <Text style={styles.tipText}>• Review incorrect answers and write brief takeaways.</Text>
+          </View>
+        </GlassCard>
       </View>
 
-      {/* Progress Chart */}
+      {/* Goals */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Domain Performance</Text>
-        <ProgressChart />
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <ActivityFeed activities={dashboardData.recentActivity} />
-      </View>
-
-      {/* Achievement Badges */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
-        <AchievementBadges achievements={dashboardData.achievements} />
+        <GlassCard>
+          <Text style={styles.sectionTitle}>Goals</Text>
+          <View style={styles.goalsList}>
+            <View style={styles.goalItem}>
+              <Text style={styles.actionIcon}>✅</Text>
+              <Text style={styles.goalText}>Complete 2 interviews this week</Text>
+            </View>
+            <View style={styles.goalItem}>
+              <Text style={styles.actionIcon}>✅</Text>
+              <Text style={styles.goalText}>Reach 80%+ average in your primary domain</Text>
+            </View>
+            <View style={styles.goalItem}>
+              <Text style={styles.actionIcon}>✅</Text>
+              <Text style={styles.goalText}>Practice 3 days in a row to build a streak</Text>
+            </View>
+          </View>
+        </GlassCard>
       </View>
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/(tabs)/interview')}
-          >
-            <Text style={styles.actionIcon}>🎯</Text>
-            <Text style={styles.actionText}>Start Interview</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionIcon}>📊</Text>
-            <Text style={styles.actionText}>View Reports</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionIcon}>🎓</Text>
-            <Text style={styles.actionText}>Study Tips</Text>
-          </TouchableOpacity>
-        </View>
+        <GlassCard>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.actionPrimary]}
+              onPress={() => router.push('/(tabs)/interview')}
+            >
+              <Text style={styles.actionIcon}>🎯</Text>
+              <Text style={styles.actionText}>Start Interview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.actionSecondary]}
+              onPress={() => router.push('/(tabs)/reports')}
+            >
+              <Text style={styles.actionIcon}>📊</Text>
+              <Text style={styles.actionText}>View Reports</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionTertiary]}>
+              <Text style={styles.actionIcon}>🎓</Text>
+              <Text style={styles.actionText}>Study Tips</Text>
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
+      </View>
+
+      {/* Achievements & Badges */}
+      <View style={styles.section}>
+        <GlassCard>
+          <Text style={styles.sectionTitle}>Achievements & Badges</Text>
+          <AchievementBadges achievements={dashboardData.achievements} />
+        </GlassCard>
       </View>
     </ScrollView>
   );
@@ -329,34 +492,45 @@ function DashboardContent() {
 
 // Main dashboard component with safe auth handling
 export default function DashboardScreen() {
-  try {
-    return <DashboardContent />;
-  } catch (error) {
-    console.log('Dashboard error:', error);
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Loading dashboard...</Text>
-      </View>
-    );
-  }
+  return <DashboardContent />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#18181b',
+    backgroundColor: '#0e0f11',
     paddingHorizontal: 16,
   },
-  header: {
+  hero: {
+    marginTop: 24,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
+  },
+  heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 24,
+  },
+  heroChips: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  chipText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   greeting: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: '#e5e7eb',
     marginBottom: 4,
   },
   userName: {
@@ -368,7 +542,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#23272e',
+    backgroundColor: 'rgba(0,0,0,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -402,6 +576,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 4,
   },
+  actionPrimary: {
+    backgroundColor: '#0b5cff',
+  },
+  actionSecondary: {
+    backgroundColor: '#10b981',
+  },
+  actionTertiary: {
+    backgroundColor: '#a855f7',
+  },
   actionIcon: {
     fontSize: 24,
     marginBottom: 8,
@@ -411,6 +594,31 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  tipCard: {
+    backgroundColor: '#23272e',
+    padding: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  tipText: {
+    color: '#cbd5e1',
+    fontSize: 14,
+  },
+  goalsList: {
+    backgroundColor: '#23272e',
+    padding: 12,
+    borderRadius: 12,
+  },
+  goalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  goalText: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginLeft: 8,
   },
   errorText: {
     color: '#ef4444',

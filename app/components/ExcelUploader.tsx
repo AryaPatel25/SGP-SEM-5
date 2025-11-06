@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Alert,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 import { Theme } from '../../constants/Colors';
 import { buildBackendUrl } from '../../src/utils/backendUrl';
@@ -160,7 +160,7 @@ export default function ExcelUploader({
                } else {
                  Alert.alert('Downloaded', `Saved to: ${downloadRes.uri}`);
                }
-             } catch (error) {
+             } catch (_error) {
                Alert.alert('Error', 'Failed to download sample file. Please try again.');
              }
            }}

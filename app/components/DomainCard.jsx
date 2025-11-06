@@ -62,4 +62,6 @@ const styles = StyleSheet.create({
   },
 });
 
+DomainCard.displayName = 'DomainCard';
+
 export default DomainCard; 

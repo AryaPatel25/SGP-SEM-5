@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+// import { useRouter } from 'expo-router'; // Unused for now
 import React from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
@@ -15,7 +15,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   textStyle 
 }) => {
   const { signInWithGoogle, isLoading } = useAuth();
-  const router = useRouter();
+  // const router = useRouter(); // Unused for now
 
   const handleGoogleSignIn = async () => {
     console.log('Google Sign-In button clicked');

@@ -126,4 +126,6 @@ const styles = StyleSheet.create({
   },
 });
 
+NavigationButtons.displayName = 'NavigationButtons';
+
 export default NavigationButtons; 

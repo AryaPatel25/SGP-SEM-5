@@ -10,22 +10,17 @@ function AuthGuard() {
   const router = useRouter();
 
   useEffect(() => {
-    let root = Array.isArray(segments) ? (segments[0] as any) : undefined;
+    if (isLoading) return; // Don't redirect while loading
 
-    if (isLoading) {
-      return; // Don't redirect while loading
-    }
+    const rootSegment = Array.isArray(segments) ? segments[0] : undefined;
+    const inAuthGroup = rootSegment === '(tabs)'; // Protected routes group
 
-    const inAuthGroup = Array.isArray(segments) && segments[0] === '(tabs)';
-    
     if (!isAuthenticated && inAuthGroup) {
-      // Redirect to login if not authenticated and trying to access protected routes
-      router.replace('/login');
+      router.replace('/login'); // Redirect unauthenticated users to login
     } else if (isAuthenticated && !inAuthGroup) {
-      // Redirect to home if authenticated and on auth pages
-      router.replace('/(tabs)');
+      router.replace('/(tabs)'); // Redirect authenticated users to home
     }
-  }, [isAuthenticated, segments, isLoading]);
+  }, [isAuthenticated, isLoading, segments, router]);
 
   return null;
 }
@@ -36,7 +31,10 @@ export default function RootLayout() {
       <AuthProvider>
         <AuthGuard />
         <Stack>
+          {/* Main app tabs */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          
+          {/* Auth screens */}
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
           <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
@@ -44,4 +42,4 @@ export default function RootLayout() {
       </AuthProvider>
     </ThemeProvider>
   );
-} 
+}
