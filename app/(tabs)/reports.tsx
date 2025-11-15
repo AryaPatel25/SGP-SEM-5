@@ -13,6 +13,8 @@ import GlassCard from '../../components/ui/GlassCard';
 import { Theme } from '../../constants/Colors';
 import { DashboardService } from '../../firebase/dashboardService';
 import { useAuth } from '../../src/context/AuthContext';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase/firebaseConfig';
 
 interface ReportData {
   performanceAnalytics: any;
@@ -30,29 +32,85 @@ export default function ReportsScreen() {
   const [recommended, setRecommended] = useState<Array<{title: string; description: string; action: string; icon?: string}>>([]);
 
   useEffect(() => {
-    loadReportData();
-  }, []);
+    if (user?.id) {
+      loadReportData();
+    }
+  }, [user?.id]);
 
   const loadReportData = async () => {
     try {
       setLoading(true);
       const userId = user?.id || 'user123';
       
-      const [statsRes, activityTimeline, progressRes, weeklyRes, achievements, recs] = await Promise.all([
+      const [statsRes, activityTimeline, progressRes, weeklyRes, achievements, recs, mockSessions] = await Promise.all([
         DashboardService.getUserStats(userId),
         DashboardService.getUserActivity(userId, 50),
         DashboardService.getUserProgress(userId),
         DashboardService.getWeeklyProgress(userId),
         DashboardService.getUserAchievements(userId),
         DashboardService.getRecommendedAchievements(userId),
+        (async () => {
+          try {
+            const userRef = doc(db, 'users', userId);
+            const mockRef = collection(userRef, 'mockInterviews');
+            const snap = await getDocs(mockRef);
+            return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+          } catch { return []; }
+        })()
       ]);
+
+      // Calculate dynamic metrics from activities and mock interviews
+      const interviewActivities = (activityTimeline || []).filter((a: any) => a.type === 'interview_completed');
+      const interviewScores = interviewActivities.map((a: any) => typeof a.score === 'number' ? a.score : 0).filter(s => s > 0);
+      const mockScores = (mockSessions || [])
+        .map((s: any) => s.averageScore)
+        .filter((s: any) => typeof s === 'number' && s > 0)
+        .map((s: number) => (s / 10) * 100); // Convert from 0-10 scale to 0-100
+      const allScores = [...interviewScores, ...mockScores];
+      const bestScore = allScores.length > 0 ? Math.max(...allScores) : 0;
+      
+      // Calculate improvement rate (compare recent vs older scores)
+      let improvementRate = 0;
+      if (allScores.length >= 4) {
+        const recentScores = allScores.slice(0, Math.floor(allScores.length / 2));
+        const olderScores = allScores.slice(Math.floor(allScores.length / 2));
+        const recentAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+        const olderAvg = olderScores.reduce((a, b) => a + b, 0) / olderScores.length;
+        if (olderAvg > 0) {
+          improvementRate = Math.round(((recentAvg - olderAvg) / olderAvg) * 100);
+        }
+      }
+
+      // Calculate current streak (consecutive days with interviews)
+      const activityDates = new Set(
+        interviewActivities.map((a: any) => String(a.timestamp).slice(0, 10))
+      );
+      const mockDates = new Set(
+        (mockSessions || []).map((s: any) => {
+          const ts = s.createdAt?.toDate ? s.createdAt.toDate() : (s.createdAt ? new Date(s.createdAt) : null);
+          return ts ? ts.toISOString().slice(0, 10) : null;
+        }).filter((d: any) => d !== null)
+      );
+      const allDates = new Set([...activityDates, ...mockDates]);
+      const sortedDates = Array.from(allDates).sort().reverse();
+      let currentStreak = 0;
+      const today = new Date().toISOString().slice(0, 10);
+      let checkDate = today;
+      for (const date of sortedDates) {
+        if (date === checkDate || date === new Date(new Date(checkDate).getTime() - 86400000).toISOString().slice(0, 10)) {
+          currentStreak++;
+          checkDate = date;
+        } else {
+          break;
+        }
+      }
 
       // Normalize domain progress shape expected by the Reports UI
       const domainProgress = (progressRes?.domainProgress || []).map((p: any) => ({
         name: p.domain,
         score: Math.round(p.averageScore || 0),
         questionsAttempted: p.answeredQuestions ?? p.totalQuestions ?? 0,
-        lastPracticed: p.lastUpdated,
+        lastPracticed: p.lastUpdated || new Date().toISOString(),
       }));
 
       // Normalize weekly stats shape expected by the Reports UI
@@ -62,9 +120,30 @@ export default function ReportsScreen() {
         timeSpent: (w.interviews || 0) * 15, // rough estimate 15m per interview
       }));
 
+      // Ensure activity timeline has proper scores
+      const normalizedActivityTimeline = (activityTimeline || []).map((a: any) => ({
+        ...a,
+        score: typeof a.score === 'number' ? a.score : (a.type === 'interview_completed' ? 0 : null),
+      }));
+
+      // Include mock interviews in total interviews count
+      const totalInterviewsIncludingMock = statsRes.totalInterviews + (mockSessions?.length || 0);
+      
+      // Calculate overall average score including mock interviews
+      const overallAverageScore = allScores.length > 0
+        ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+        : statsRes.averageScore;
+
       setReportData({
-        performanceAnalytics: statsRes,
-        activityTimeline,
+        performanceAnalytics: {
+          ...statsRes,
+          totalInterviews: totalInterviewsIncludingMock,
+          averageScore: overallAverageScore,
+          bestScore,
+          improvementRate,
+          currentStreak,
+        },
+        activityTimeline: normalizedActivityTimeline,
         domainProgress,
         weeklyStats,
         achievements,
@@ -201,22 +280,39 @@ export default function ReportsScreen() {
         return (
           <GlassCard style={styles.contentCard}>
             <Text style={styles.contentTitle}>Recent Activity</Text>
-            <ScrollView style={styles.activityList}>
-              {reportData.activityTimeline.slice(0, 10).map((activity, index) => (
-                <View key={index} style={styles.activityItem}>
-                  <View style={styles.activityIcon}>
-                    <Ionicons name="checkmark-circle" size={20} color={Theme.dark.accent} />
-                  </View>
-                  <View style={styles.activityContent}>
-                    <Text style={styles.activityDescription}>{activity.description}</Text>
-                    <Text style={styles.activityDate}>
-                      {new Date(activity.timestamp).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Text style={styles.activityScore}>{activity.score || 'N/A'}%</Text>
-                </View>
-              ))}
-            </ScrollView>
+            {reportData.activityTimeline.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="time-outline" size={48} color={Theme.dark.textSecondary} />
+                <Text style={styles.emptyStateText}>No activity yet</Text>
+                <Text style={styles.emptyStateSubtext}>Complete interviews to see your activity here</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.activityList}>
+                {reportData.activityTimeline.slice(0, 10).map((activity, index) => {
+                  const displayScore = activity.type === 'interview_completed' 
+                    ? (typeof activity.score === 'number' ? `${activity.score}%` : '0%')
+                    : '—';
+                  return (
+                    <View key={index} style={styles.activityItem}>
+                      <View style={styles.activityIcon}>
+                        <Ionicons 
+                          name={activity.type === 'interview_completed' ? "checkmark-circle" : "trophy"} 
+                          size={20} 
+                          color={Theme.dark.accent} 
+                        />
+                      </View>
+                      <View style={styles.activityContent}>
+                        <Text style={styles.activityDescription}>{activity.description || activity.title}</Text>
+                        <Text style={styles.activityDate}>
+                          {new Date(activity.timestamp).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.activityScore}>{displayScore}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </GlassCard>
         );
 
@@ -285,8 +381,15 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reports & Analytics</Text>
-        <Text style={styles.headerSubtitle}>Track your interview preparation progress</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>Reports & Analytics</Text>
+            <Text style={styles.headerSubtitle}>Track your interview preparation progress</Text>
+          </View>
+          <TouchableOpacity onPress={loadReportData} style={styles.refreshButton}>
+            <Ionicons name="refresh" size={24} color={Theme.dark.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.reportsContainer}>
@@ -326,6 +429,11 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 60,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
@@ -335,6 +443,10 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: Theme.dark.textSecondary,
+  },
+  refreshButton: {
+    padding: 8,
+    marginTop: 4,
   },
   reportsContainer: {
     flex: 1,
@@ -539,5 +651,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 32,
     gap: 12,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Theme.dark.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: Theme.dark.textSecondary,
+    textAlign: 'center',
   },
 });

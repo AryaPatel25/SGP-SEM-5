@@ -61,8 +61,12 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
       <View style={styles.activityContent}>
         {item.type === 'interview_completed' ? (
           <>
-            <Text style={styles.activityTitle}>
-              Completed {item.domain} Interview
+            <Text 
+              style={styles.activityTitle}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              Completed <Text style={styles.domainText}>{item.domain}</Text> Interview
             </Text>
             <Text style={styles.activitySubtitle}>
               Score: {item.score}%
@@ -130,6 +134,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     marginBottom: 2,
+    flexWrap: 'wrap',
+  },
+  domainText: {
+    fontWeight: '700',
+    color: '#9B5CFB',
   },
   activitySubtitle: {
     fontSize: 12,

@@ -32,8 +32,8 @@ const InterviewResults = ({
         setLoadingEvaluations(true);
         const evals = {};
         for (let i = 0; i < questions.length; i++) {
-          const userAnswer = userAnswers[i] || '';
-          const modelAnswer = questions[i].answer || '';
+          const userAnswer = String(userAnswers[i] || '');
+          const modelAnswer = String(questions[i].answer || '');
           if (userAnswer.trim().length > 0 && modelAnswer.trim().length > 0) {
             try {
               const res = await fetch(buildBackendUrl('/evaluate-answer'), {
@@ -86,7 +86,7 @@ const InterviewResults = ({
     let correct = 0;
     if (questionType === 'quiz') {
       correct = questions.reduce((count, question, index) => {
-        const userAnswer = userAnswers[index] || '';
+        const userAnswer = String(userAnswers[index] || '');
         return count + (userAnswer === question.options?.["ABCD".indexOf(question.correct)] ? 1 : 0);
       }, 0);
     } else {
@@ -183,7 +183,7 @@ const InterviewResults = ({
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsTitle}>Practice Questions Summary</Text>
         {questions.map((question, index) => {
-          const userAnswer = userAnswers[index] || '';
+          const userAnswer = String(userAnswers[index] || '');
           const hasAnswered = userAnswer.trim().length > 0;
           const isQuiz = questionType === 'quiz';
           let isCorrect = false;

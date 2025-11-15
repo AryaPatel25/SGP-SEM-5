@@ -4,17 +4,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { Theme } from "../../constants/Colors";
 import { useAuth } from "../../src/context/AuthContext";
-// import { useTheme } from "../../src/context/ThemeContext"; // Unused for now
-import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -112,15 +113,24 @@ export default function SignupScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[Theme.dark.background, Theme.dark.surface]}
+        style={StyleSheet.absoluteFill}
+      />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
+        {/* Fixed Header with Gradient */}
+        <LinearGradient
+          colors={[Theme.dark.gradient.primary[0], Theme.dark.gradient.primary[1]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => {
@@ -130,33 +140,31 @@ export default function SignupScreen() {
             >
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Create Account</Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Create Account</Text>
+              <Text style={styles.headerSubtitle}>
+                Join us and start your interview journey
+              </Text>
+            </View>
             <View style={styles.placeholder} />
           </View>
+        </LinearGradient>
 
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={["#6366f1", "#8b5cf6"]}
-              style={styles.logo}
-            >
-              <Text style={styles.logoText}>AI</Text>
-            </LinearGradient>
-            <Text style={styles.appTitle}>Join AI Job Interview Trainer</Text>
-            <Text style={styles.subtitle}>
-              Start your journey to interview success
-            </Text>
-          </View>
-
-          {/* Signup Form */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.formContainer}>
             {/* Full Name */}
             <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color="#94a3b8" />
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="person-outline" size={20} color={Theme.dark.accent} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Theme.dark.textSecondary}
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
@@ -166,11 +174,13 @@ export default function SignupScreen() {
 
             {/* Email */}
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#94a3b8" />
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="mail-outline" size={20} color={Theme.dark.accent} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Email Address"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Theme.dark.textSecondary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -181,11 +191,13 @@ export default function SignupScreen() {
 
             {/* Phone */}
             <View style={styles.inputContainer}>
-              <Ionicons name="call-outline" size={20} color="#94a3b8" />
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="call-outline" size={20} color={Theme.dark.accent} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Phone Number (Optional)"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Theme.dark.textSecondary}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -196,11 +208,13 @@ export default function SignupScreen() {
 
             {/* Password */}
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={Theme.dark.accent} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Theme.dark.textSecondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -217,7 +231,7 @@ export default function SignupScreen() {
                 <Ionicons
                   name={showPassword ? "eye" : "eye-off"}
                   size={20}
-                  color="#94a3b8"
+                  color={Theme.dark.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -244,11 +258,13 @@ export default function SignupScreen() {
 
             {/* Confirm Password */}
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#94a3b8" />
+              <View style={styles.inputIconContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={Theme.dark.accent} />
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="Confirm Password"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={Theme.dark.textSecondary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -265,7 +281,7 @@ export default function SignupScreen() {
                 <Ionicons
                   name={showConfirmPassword ? "eye" : "eye-off"}
                   size={20}
-                  color="#94a3b8"
+                  color={Theme.dark.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -277,24 +293,19 @@ export default function SignupScreen() {
               disabled={isLoading}
             >
               <LinearGradient
-                colors={["#6366f1", "#8b5cf6"]}
+                colors={Theme.dark.gradient.primary as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
                 style={styles.signupButtonGradient}
               >
                 <Text style={styles.signupButtonText}>
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Text>
+                {!isLoading && (
+                  <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                )}
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Google Sign-In */}
-            <GoogleSignInButton style={styles.googleButton} />
-
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.divider} />
-            </View>
 
             {/* Login Link */}
             <View style={styles.loginContainer}>
@@ -309,114 +320,114 @@ export default function SignupScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </LinearGradient>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    backgroundColor: Theme.dark.background,
   },
   header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 24,
+    zIndex: 10,
+  },
+  headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 32,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#1e293b",
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 16,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "800",
     color: "#ffffff",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
   },
   placeholder: {
     width: 40,
   },
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  logo: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  appTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 6,
-    textAlign: "center",
-    color: "#ffffff",
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    color: "#94a3b8",
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 20,
   },
   formContainer: {
-    padding: 24,
-    borderRadius: 20,
-    backgroundColor: "rgba(30,41,59,0.9)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    padding: 28,
+    marginTop: 10,
+    borderRadius: 24,
+    backgroundColor: Theme.dark.surface,
+    borderWidth: 1,
+    borderColor: Theme.dark.border,
+    ...Theme.dark.shadow.medium,
   },
   inputContainer: {
-    marginBottom: 16,
-    position: "relative",
+    marginBottom: 18,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#334155",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#475569",
-    paddingHorizontal: 12,
+    backgroundColor: Theme.dark.surface,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Theme.dark.border,
+    paddingHorizontal: 16,
+    minHeight: 58,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputIconContainer: {
+    marginRight: 14,
+    width: 24,
+    alignItems: "center",
   },
   input: {
     flex: 1,
-    height: 56,
+    height: 58,
     fontSize: 16,
-    color: "#fff",
-    marginLeft: 8,
+    color: Theme.dark.textPrimary,
+    fontWeight: "500",
   },
   eyeButton: {
-    padding: 6,
+    padding: 8,
+    marginLeft: 4,
   },
   strengthContainer: {
-    marginBottom: 16,
+    marginBottom: 18,
+    marginTop: -4,
   },
   strengthBar: {
-    height: 4,
-    backgroundColor: "#475569",
-    borderRadius: 2,
-    marginBottom: 4,
+    height: 5,
+    backgroundColor: Theme.dark.border,
+    borderRadius: 3,
+    marginBottom: 6,
+    overflow: "hidden",
   },
   strengthFill: {
     height: "100%",
@@ -425,23 +436,31 @@ const styles = StyleSheet.create({
   strengthText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#94a3b8",
+    color: Theme.dark.textSecondary,
   },
   signupButton: {
-    height: 56,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: 58,
+    borderRadius: 14,
+    marginTop: 8,
+    marginBottom: 24,
     overflow: "hidden",
+    shadowColor: Theme.dark.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   signupButtonGradient: {
     flex: 1,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 24,
   },
   signupButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   googleButton: {
     height: 56,
@@ -458,25 +477,26 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#475569",
+    backgroundColor: Theme.dark.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
-    color: "#94a3b8",
+    color: Theme.dark.textSecondary,
   },
   loginContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 8,
   },
   loginText: {
-    fontSize: 14,
-    color: "#94a3b8",
+    fontSize: 15,
+    color: Theme.dark.textSecondary,
   },
   loginLink: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#6366f1",
+    fontSize: 15,
+    fontWeight: "700",
+    color: Theme.dark.accent,
   },
 });

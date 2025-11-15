@@ -1,8 +1,10 @@
 // app/(tabs)/interview/index.jsx
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../../../constants/Colors';
 import { db } from '../../../firebase/firebaseConfig';
 import { buildBackendUrl } from '../../../src/utils/backendUrl';
@@ -12,6 +14,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import NavigationButtons from '../../components/NavigationButtons';
 import QuestionCard from '../../components/QuestionCard';
 import QuizQuestionCard from '../../components/QuizQuestionCard';
+import GlassCard from '../../../components/ui/GlassCard';
 
 const SAMPLE_DOMAINS = [
   {
@@ -242,85 +245,155 @@ export default function InterviewScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.pageTitle}>Interview Practice</Text>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with Gradient */}
+        <LinearGradient
+          colors={[Theme.dark.gradient.primary[0], Theme.dark.gradient.primary[1]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <Text style={styles.pageTitle}>🎯 Interview Practice</Text>
+          <Text style={styles.pageSubtitle}>Choose your mode and start practicing</Text>
+        </LinearGradient>
 
-      {/* Mode Toggle */}
-      <View style={styles.row}>
-        <Pressable
-          style={[styles.toggle, mode === 'normal' && styles.toggleActive]}
-          onPress={() => {
-            resetSession();
-            setMode('normal');
-          }}>
-          <Text style={[styles.toggleText, mode === 'normal' && styles.toggleTextActive]}>Normal</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggle, mode === 'ai' && styles.toggleActive]}
-          onPress={() => {
-            resetSession();
-            setMode('ai');
-          }}>
-          <Text style={[styles.toggleText, mode === 'ai' && styles.toggleTextActive]}>AI Generate</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggle, mode === 'custom' && styles.toggleActive]}
-          onPress={() => {
-            resetSession();
-            setMode('custom');
-            router.push('/(tabs)/custom-quiz');
-          }}>
-          <Text style={[styles.toggleText, mode === 'custom' && styles.toggleTextActive]}>Custom Quiz</Text>
-        </Pressable>
-      </View>
+        {/* Mode Toggle */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeaderTitle}>Mode Selection</Text>
+          <View style={styles.toggleRow}>
+            <Pressable
+              style={[styles.toggle, mode === 'normal' && styles.toggleActive]}
+              onPress={() => {
+                resetSession();
+                setMode('normal');
+              }}>
+              <Ionicons 
+                name="document-text" 
+                size={18} 
+                color={mode === 'normal' ? '#fff' : Theme.dark.textSecondary} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.toggleText, mode === 'normal' && styles.toggleTextActive]}>Normal</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggle, mode === 'ai' && styles.toggleActive]}
+              onPress={() => {
+                resetSession();
+                setMode('ai');
+              }}>
+              <Ionicons 
+                name="sparkles" 
+                size={18} 
+                color={mode === 'ai' ? '#fff' : Theme.dark.textSecondary} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.toggleText, mode === 'ai' && styles.toggleTextActive]}>AI Generate</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggle, mode === 'custom' && styles.toggleActive]}
+              onPress={() => {
+                resetSession();
+                setMode('custom');
+                router.push('/(tabs)/custom-quiz');
+              }}>
+              <Ionicons 
+                name="create" 
+                size={18} 
+                color={mode === 'custom' ? '#fff' : Theme.dark.textSecondary} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.toggleText, mode === 'custom' && styles.toggleTextActive]}>Custom</Text>
+            </Pressable>
+          </View>
+        </View>
 
-      {/* Question Type Toggle */}
-      <View style={styles.row}>
-        <Pressable
-          style={[styles.toggle, questionType === 'descriptive' && styles.toggleActive]}
-          onPress={() => {
-            resetSession();
-            setQuestionType('descriptive');
-          }}>
-          <Text style={[styles.toggleText, questionType === 'descriptive' && styles.toggleTextActive]}>Descriptive</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggle, questionType === 'quiz' && styles.toggleActive]}
-          onPress={() => {
-            resetSession();
-            setQuestionType('quiz');
-          }}>
-          <Text style={[styles.toggleText, questionType === 'quiz' && styles.toggleTextActive]}>Quiz</Text>
-        </Pressable>
-      </View>
+        {/* Question Type Toggle */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeaderTitle}>Question Type</Text>
+          <View style={styles.toggleRow}>
+            <Pressable
+              style={[styles.toggle, questionType === 'descriptive' && styles.toggleActive]}
+              onPress={() => {
+                resetSession();
+                setQuestionType('descriptive');
+              }}>
+              <Ionicons 
+                name="text" 
+                size={18} 
+                color={questionType === 'descriptive' ? '#fff' : Theme.dark.textSecondary} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.toggleText, questionType === 'descriptive' && styles.toggleTextActive]}>Descriptive</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggle, questionType === 'quiz' && styles.toggleActive]}
+              onPress={() => {
+                resetSession();
+                setQuestionType('quiz');
+              }}>
+              <Ionicons 
+                name="checkbox" 
+                size={18} 
+                color={questionType === 'quiz' ? '#fff' : Theme.dark.textSecondary} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.toggleText, questionType === 'quiz' && styles.toggleTextActive]}>Quiz</Text>
+            </Pressable>
+          </View>
+        </View>
 
-      {/* Domain Selection */}
-      {!selectedDomain && (
-        <>
-          <Text style={styles.sectionTitle}>Select a Domain</Text>
-          {filteredDomains.length === 0 ? (
-            <Text style={styles.noData}>No domains available for this type.</Text>
-          ) : (
-            <FlatList
-              data={filteredDomains}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              contentContainerStyle={styles.list}
-              renderItem={({ item }) => (
-                <DomainCard domain={item} onPress={() => handleDomainPress(item)} style={styles.domainItem} />
-              )}
-            />
-          )}
-        </>
-      )}
+        {/* Domain Selection */}
+        {!selectedDomain && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeaderTitle}>📚 Select a Domain</Text>
+            {filteredDomains.length === 0 ? (
+              <GlassCard style={styles.emptyCard}>
+                <Ionicons name="folder-open-outline" size={48} color={Theme.dark.textSecondary} />
+                <Text style={styles.noData}>No domains available for this type.</Text>
+              </GlassCard>
+            ) : (
+              <View style={styles.domainGrid}>
+                {filteredDomains.map((item) => (
+                  <DomainCard 
+                    key={item.id}
+                    domain={item} 
+                    onPress={() => handleDomainPress(item)} 
+                    style={styles.domainItem} 
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
 
       {/* Questions */}
       {selectedDomain && !showResults && (
-        <>
+        <View style={styles.questionsContainer}>
           {loadingQuestions ? (
             <LoadingSpinner message="Loading questions..." />
           ) : (
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitle}>{selectedDomain?.name}</Text>
+              <View style={styles.domainHeader}>
+                <TouchableOpacity 
+                  style={styles.backButton}
+                  onPress={resetSession}
+                >
+                  <Ionicons name="arrow-back" size={22} color={Theme.dark.textPrimary} />
+                </TouchableOpacity>
+                <Text 
+                  style={styles.domainTitle}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {selectedDomain?.name}
+                </Text>
+                <View style={styles.placeholder} />
+              </View>
 
               {(innerError || questions.length === 0) ? (
                 <View style={styles.errorCard}>
@@ -347,7 +420,7 @@ export default function InterviewScreen() {
                 <>
                   <ScrollView
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingBottom: 120 }}
+                    contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 4 }}
                     showsVerticalScrollIndicator={false}>
                     {questionType === 'quiz' ? (
                       <QuizQuestionCard
@@ -385,7 +458,7 @@ export default function InterviewScreen() {
               )}
             </View>
           )}
-        </>
+        </View>
       )}
 
       {/* Results */}
@@ -451,41 +524,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Theme.dark.background,
-    paddingHorizontal: 20,
   },
-  centered: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Theme.dark.background,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  header: {
+    padding: 24,
+    paddingTop: 60,
+    marginBottom: 24,
   },
   pageTitle: {
-    color: Theme.dark.textPrimary,
+    color: '#ffffff',
     fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
-    marginTop: 28,
-    marginBottom: 16,
+    marginBottom: 8,
     letterSpacing: 0.5,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  pageSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionHeaderTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Theme.dark.textPrimary,
     marginBottom: 16,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   toggle: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    backgroundColor: Theme.dark.glass.background,
-    borderWidth: 1,
-    borderColor: Theme.dark.glass.border,
+    flex: 1,
+    minWidth: 100,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: Theme.dark.surface,
+    borderWidth: 1.5,
+    borderColor: Theme.dark.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Theme.dark.shadow.soft,
   },
   toggleActive: {
     backgroundColor: Theme.dark.accent,
-    borderColor: Theme.dark.accentDark,
+    borderColor: Theme.dark.accent,
+    ...Theme.dark.shadow.glowPrimary,
   },
   toggleText: {
     color: Theme.dark.textSecondary,
@@ -493,28 +589,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   toggleTextActive: {
-    color: Theme.dark.background,
+    color: '#ffffff',
     fontWeight: '700',
   },
-  sectionTitle: {
-    color: Theme.dark.accent,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 12,
+  domainGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  list: {
-    paddingBottom: 120,
+  questionsContainer: {
+    flex: 1,
+    backgroundColor: Theme.dark.background,
+  },
+  domainHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: Theme.dark.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.dark.border,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Theme.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.dark.border,
+  },
+  domainTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Theme.dark.textPrimary,
+    textAlign: 'center',
+    marginHorizontal: 12,
+    lineHeight: 26,
+  },
+  placeholder: {
+    width: 40,
+  },
+  emptyCard: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Theme.dark.background,
   },
   domainItem: {
-    flex: 1,
-    margin: 10,
+    width: '48%',
   },
   noData: {
     color: Theme.dark.textSecondary,
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 16,
     fontSize: 16,
+    fontWeight: '500',
   },
   errorText: {
     color: Theme.dark.error,
@@ -523,12 +663,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   errorCard: {
-    backgroundColor: Theme.dark.glass.background,
+    backgroundColor: Theme.dark.surface,
     padding: 24,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: Theme.dark.glass.border,
+    borderColor: Theme.dark.danger,
     marginBottom: 18,
+    marginHorizontal: 20,
     ...Theme.dark.shadow.soft,
   },
   errorCardText: {
@@ -575,12 +716,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCard: {
-    backgroundColor: Theme.dark.surface, // solid dark background
-    padding: 22,
-    borderRadius: 18,
+    backgroundColor: Theme.dark.surface,
+    padding: 28,
+    borderRadius: 24,
     width: 320,
-    borderWidth: 1,
-    borderColor: Theme.dark.glass.border,
+    borderWidth: 1.5,
+    borderColor: Theme.dark.border,
     ...Theme.dark.shadow.medium,
   },
   modalTitle: {
@@ -616,3 +757,4 @@ const styles = StyleSheet.create({
     borderColor: Theme.dark.glass.border,
   },
 });
+

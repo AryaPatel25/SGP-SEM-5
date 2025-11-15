@@ -1,16 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { DashboardService } from '../../firebase/dashboardService';
 import { useAuth } from '../../src/context/AuthContext';
 import AchievementBadges from '../components/dashboard/AchievementBadges';
-import StatsCard from '../components/dashboard/StatsCard';
 // Reports and deeper analytics moved to Reports tab
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, doc, getDocs } from 'firebase/firestore';
@@ -219,15 +219,40 @@ function DashboardContent() {
       // Format weekly progress for the dashboard
       const formattedWeeklyProgress = (weeklyProgress as any[]).map((day: any) => ({
         day: new Date(day.date).toLocaleDateString('en', { weekday: 'short' }),
-        interviews: day.interviews,
-        score: Math.round(day.score)
+        interviews: day.interviews || 0,
+        score: Math.round(day.score || 0)
       }));
 
+      // Calculate total interviews including mock interviews
+      const totalInterviewsIncludingMock = stats.totalInterviews + mockCount;
+      
+      // Calculate time spent: regular interviews (15 min each) + mock interviews (estimated 5 min per question)
+      const mockTimeSpent = mockSessions.reduce((total: number, session: any) => {
+        const questionCount = session.totalQuestions || (session.questions?.length || 0);
+        return total + (questionCount * 5); // 5 minutes per question
+      }, 0);
+      const regularTimeSpent = stats.totalInterviews * 15;
+      const totalTimeSpent = Math.round(regularTimeSpent + mockTimeSpent);
+
+      // Calculate average score including mock interviews
+      const interviewScores = (activities as any[])
+        .filter((a: any) => a.type === 'interview_completed')
+        .map((a: any) => typeof a.score === 'number' ? a.score : null)
+        .filter((s: any) => s !== null) as number[];
+      const mockScores = mockSessions
+        .map((s: any) => s.averageScore)
+        .filter((s: any) => typeof s === 'number' && s > 0)
+        .map((s: number) => (s / 10) * 100); // Convert from 0-10 scale to 0-100
+      const allScores = [...interviewScores, ...mockScores];
+      const overallAverageScore = allScores.length > 0
+        ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+        : stats.averageScore;
+
       setDashboardData({
-        totalInterviews: stats.totalInterviews,
-        averageScore: stats.averageScore,
+        totalInterviews: totalInterviewsIncludingMock,
+        averageScore: overallAverageScore,
         questionsAnswered: stats.answeredQuestions,
-        timeSpent: Math.round(stats.totalInterviews * 15), // Estimated time
+        timeSpent: totalTimeSpent,
         weeklyProgress: formattedWeeklyProgress,
         recentActivity,
         achievements: mergedAchievements,
@@ -364,6 +389,57 @@ function DashboardContent() {
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
+  const ProgressRing = ({ percentage, size = 70 }: { percentage: number; size?: number }) => {
+    const normalized = Math.max(0, Math.min(100, percentage));
+    const rotation = (normalized / 100) * 360 - 90;
+
+    return (
+      <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+        {/* Background circle */}
+        <View style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 6,
+          borderColor: 'rgba(255,255,255,0.1)',
+          position: 'absolute',
+        }} />
+        {/* Progress arc using a half-circle approach */}
+        {normalized > 0 && (
+          <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 6,
+            borderColor: '#22c55e',
+            borderTopColor: normalized >= 50 ? '#22c55e' : 'transparent',
+            borderRightColor: normalized > 0 ? '#22c55e' : 'transparent',
+            borderBottomColor: 'transparent',
+            borderLeftColor: 'transparent',
+            transform: [{ rotate: `${rotation}deg` }],
+            position: 'absolute',
+          }} />
+        )}
+        {normalized > 50 && (
+          <View style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 6,
+            borderColor: '#22c55e',
+            borderTopColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderBottomColor: '#22c55e',
+            borderLeftColor: '#22c55e',
+            transform: [{ rotate: `${rotation - 180}deg` }],
+            position: 'absolute',
+          }} />
+        )}
+        <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '800' }}>{normalized}%</Text>
+      </View>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Hero Header */}
@@ -374,47 +450,53 @@ function DashboardContent() {
         style={styles.hero}
       >
         <View style={styles.heroRow}>
-          <View>
+          <View style={styles.heroTextContainer}>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.userName}>{user?.fullName || (user?.email ? user.email.split('@')[0] : 'User')} 👋</Text>
+            <Text style={styles.userName}>
+              {user?.fullName?.trim() || (user?.email ? user.email.split('@')[0] : 'User')} 👋
+            </Text>
+            <Text style={styles.heroSubtitle}>Track your progress and keep improving</Text>
           </View>
           <TouchableOpacity style={styles.refreshButton} onPress={loadDashboardData}>
-            <Text style={styles.refreshButtonText}>🔄</Text>
+            <Ionicons name="refresh" size={22} color="#fff" />
           </TouchableOpacity>
-        </View>
-        <View style={styles.heroChips}>
-          <View style={styles.chip}><Text style={styles.chipText}>Interviews: {dashboardData.totalInterviews}</Text></View>
-          <View style={styles.chip}><Text style={styles.chipText}>Avg: {dashboardData.averageScore}%</Text></View>
-          <View style={styles.chip}><Text style={styles.chipText}>Time: {formatTime(dashboardData.timeSpent)}</Text></View>
         </View>
       </LinearGradient>
 
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <StatsCard
-          title="Total Interviews"
-          value={dashboardData.totalInterviews.toString()}
-          icon="📊"
-          color="#38bdf8"
-        />
-        <StatsCard
-          title="Average Score"
-          value={`${dashboardData.averageScore}%`}
-          icon="📈"
-          color="#22c55e"
-        />
-        <StatsCard
-          title="Questions Answered"
-          value={dashboardData.questionsAnswered.toString()}
-          icon="❓"
-          color="#f59e0b"
-        />
-        <StatsCard
-          title="Time Spent"
-          value={formatTime(dashboardData.timeSpent)}
-          icon="⏱️"
-          color="#8b5cf6"
-        />
+      {/* Key Metrics Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeaderTitle}>📊 Key Metrics</Text>
+        <View style={styles.metricsGrid}>
+          <GlassCard style={styles.metricCard}>
+            <View style={styles.metricIconContainer}>
+              <Ionicons name="chatbubbles" size={28} color={Theme.dark.accent} />
+            </View>
+            <Text style={styles.metricValue}>{dashboardData.totalInterviews}</Text>
+            <Text style={styles.metricLabel}>Interviews</Text>
+          </GlassCard>
+          <GlassCard style={styles.metricCard}>
+            <ProgressRing percentage={dashboardData.averageScore} size={70} />
+            <Text style={styles.metricLabel}>Avg Score</Text>
+          </GlassCard>
+          <GlassCard style={styles.metricCard}>
+            <View style={styles.metricIconContainer}>
+              <Ionicons name="time" size={28} color={Theme.dark.accent} />
+            </View>
+            <Text style={styles.metricValue}>{formatTime(dashboardData.timeSpent)}</Text>
+            <Text style={styles.metricLabel}>Time Spent</Text>
+          </GlassCard>
+          <GlassCard style={styles.metricCard}>
+            <View style={styles.sparklineContainer}>
+              {dashboardData.weeklyProgress.map((d, idx) => (
+                <View key={idx} style={styles.sparkCol}>
+                  <View style={[styles.sparkBar, { height: Math.max(8, Math.min(40, Math.round((d.score || 0) * 0.4))) }]} />
+                  <Text style={styles.sparkLabel}>{d.day.slice(0,1)}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.metricLabel}>Active Days</Text>
+          </GlassCard>
+        </View>
       </View>
 
       {/* Highlights moved to Reports. Keep Dashboard lightweight */}
@@ -422,30 +504,90 @@ function DashboardContent() {
       {/* Today's Tips */}
       <View style={styles.section}>
         <GlassCard>
-          <Text style={styles.sectionTitle}>Today's Tips</Text>
-          <View style={styles.tipCard}>
-            <Text style={styles.tipText}>• Focus one domain per session for better retention.</Text>
-            <Text style={styles.tipText}>• Aim for short, consistent practice (20–30 minutes).</Text>
-            <Text style={styles.tipText}>• Review incorrect answers and write brief takeaways.</Text>
+          <View style={styles.tipHeader}>
+            <Text style={styles.sectionTitle}>💡 Today's Tips</Text>
+          </View>
+          <View style={styles.tipsList}>
+            <View style={styles.tipItem}>
+              <View style={styles.tipBullet} />
+              <Text style={styles.tipText}>Focus one domain per session for better retention</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <View style={styles.tipBullet} />
+              <Text style={styles.tipText}>Aim for short, consistent practice (20–30 minutes)</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <View style={styles.tipBullet} />
+              <Text style={styles.tipText}>Review incorrect answers and write brief takeaways</Text>
+            </View>
           </View>
         </GlassCard>
       </View>
 
+      {/* Recent Activity */}
+      {dashboardData.recentActivity.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeaderTitle}>📈 Recent Activity</Text>
+          <GlassCard>
+            {dashboardData.recentActivity.slice(0, 3).map((activity) => (
+              <View key={activity.id} style={styles.activityItem}>
+                <View style={styles.activityIconContainer}>
+                  <Ionicons 
+                    name={activity.type === 'interview_completed' ? 'checkmark-circle' : 'trophy'} 
+                    size={24} 
+                    color={Theme.dark.accent} 
+                  />
+                </View>
+                <View style={styles.activityContent}>
+                  {activity.type === 'interview_completed' ? (
+                    <>
+                      <Text 
+                        style={styles.activityTitle}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                      >
+                        Completed <Text style={styles.domainText}>{activity.domain}</Text> Interview
+                      </Text>
+                      <Text style={styles.activitySubtitle}>
+                        Score: {activity.score}% • {new Date(activity.timestamp).toLocaleDateString()}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.activityTitle}>{activity.title}</Text>
+                      <Text style={styles.activitySubtitle}>{activity.description}</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            ))}
+          </GlassCard>
+        </View>
+      )}
+
       {/* Goals */}
       <View style={styles.section}>
         <GlassCard>
-          <Text style={styles.sectionTitle}>Goals</Text>
+          <View style={styles.goalHeader}>
+            <Text style={styles.sectionTitle}>🎯 Your Goals</Text>
+          </View>
           <View style={styles.goalsList}>
             <View style={styles.goalItem}>
-              <Text style={styles.actionIcon}>✅</Text>
+              <View style={styles.goalCheckbox}>
+                <Text style={styles.goalCheck}>✓</Text>
+              </View>
               <Text style={styles.goalText}>Complete 2 interviews this week</Text>
             </View>
             <View style={styles.goalItem}>
-              <Text style={styles.actionIcon}>✅</Text>
+              <View style={styles.goalCheckbox}>
+                <Text style={styles.goalCheck}>✓</Text>
+              </View>
               <Text style={styles.goalText}>Reach 80%+ average in your primary domain</Text>
             </View>
             <View style={styles.goalItem}>
-              <Text style={styles.actionIcon}>✅</Text>
+              <View style={styles.goalCheckbox}>
+                <Text style={styles.goalCheck}>✓</Text>
+              </View>
               <Text style={styles.goalText}>Practice 3 days in a row to build a streak</Text>
             </View>
           </View>
@@ -454,35 +596,57 @@ function DashboardContent() {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <GlassCard>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionPrimary]}
-              onPress={() => router.push('/(tabs)/interview')}
+        <Text style={styles.sectionHeaderTitle}>⚡ Quick Actions</Text>
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.actionPrimary]}
+            onPress={() => router.push('/(tabs)/interview')}
+          >
+            <LinearGradient
+              colors={Theme.dark.gradient.primary as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.actionButtonGradient}
             >
-              <Text style={styles.actionIcon}>🎯</Text>
+              <Ionicons name="chatbubbles" size={24} color="#fff" />
               <Text style={styles.actionText}>Start Interview</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.actionSecondary]}
-              onPress={() => router.push('/(tabs)/reports')}
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.actionSecondary]}
+            onPress={() => router.push('/(tabs)/reports')}
+          >
+            <LinearGradient
+              colors={['#10b981', '#059669'] as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.actionButtonGradient}
             >
-              <Text style={styles.actionIcon}>📊</Text>
+              <Ionicons name="stats-chart" size={24} color="#fff" />
               <Text style={styles.actionText}>View Reports</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.actionTertiary]}>
-              <Text style={styles.actionIcon}>🎓</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.actionTertiary]}
+            onPress={() => router.push('/(tabs)/tips-resources')}
+          >
+            <LinearGradient
+              colors={['#a855f7', '#9333ea'] as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.actionButtonGradient}
+            >
+              <Ionicons name="bulb" size={24} color="#fff" />
               <Text style={styles.actionText}>Study Tips</Text>
-            </TouchableOpacity>
-          </View>
-        </GlassCard>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Achievements & Badges */}
       <View style={styles.section}>
+        <Text style={styles.sectionHeaderTitle}>🏆 Achievements & Badges</Text>
         <GlassCard>
-          <Text style={styles.sectionTitle}>Achievements & Badges</Text>
           <AchievementBadges achievements={dashboardData.achievements} />
         </GlassCard>
       </View>
@@ -498,127 +662,230 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0e0f11',
-    paddingHorizontal: 16,
+    backgroundColor: Theme.dark.background,
   },
   hero: {
     marginTop: 24,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
+    marginBottom: 24,
+    padding: 24,
+    paddingTop: 60,
+    borderRadius: 0,
   },
   heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  heroChips: {
+  heroTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  metricsGrid: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  chip: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  metricCard: {
+    width: '48%',
+    padding: 20,
+    alignItems: 'center',
+    minHeight: 140,
+    justifyContent: 'center',
   },
-  chipText: {
-    color: '#ffffff',
+  metricIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Theme.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  metricValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Theme.dark.textPrimary,
+    marginBottom: 4,
+  },
+  metricLabel: {
     fontSize: 12,
+    color: Theme.dark.textSecondary,
+    fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  sparklineContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    height: 50,
+    marginBottom: 8,
+  },
+  sparkCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  sparkBar: {
+    width: 8,
+    backgroundColor: Theme.dark.accent,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  sparkLabel: {
+    color: Theme.dark.textSecondary,
+    fontSize: 10,
     fontWeight: '600',
   },
   greeting: {
     fontSize: 16,
-    color: '#e5e7eb',
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 4,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#ffffff',
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
   },
   refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  refreshButtonText: {
-    fontSize: 18,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   section: {
     marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeaderTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Theme.dark.textPrimary,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: Theme.dark.textPrimary,
     marginBottom: 16,
   },
   quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
+    flexDirection: 'column',
   },
   actionButton: {
-    flex: 1,
-    backgroundColor: '#23272e',
-    padding: 16,
     borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  actionButtonGradient: {
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  actionPrimary: {
-    backgroundColor: '#0b5cff',
-  },
-  actionSecondary: {
-    backgroundColor: '#10b981',
-  },
-  actionTertiary: {
-    backgroundColor: '#a855f7',
-  },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+    justifyContent: 'center',
+    gap: 12,
   },
   actionText: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#ffffff',
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '700',
   },
-  tipCard: {
-    backgroundColor: '#23272e',
-    padding: 16,
-    borderRadius: 12,
-    gap: 6,
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.dark.border,
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Theme.dark.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Theme.dark.textPrimary,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  domainText: {
+    fontWeight: '700',
+    color: Theme.dark.accent,
+  },
+  activitySubtitle: {
+    fontSize: 13,
+    color: Theme.dark.textSecondary,
+  },
+  tipHeader: {
+    marginBottom: 12,
+  },
+  tipsList: {
+    gap: 12,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tipBullet: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Theme.dark.accent,
   },
   tipText: {
-    color: '#cbd5e1',
+    color: Theme.dark.textPrimary,
     fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
+  },
+  goalHeader: {
+    marginBottom: 12,
   },
   goalsList: {
-    backgroundColor: '#23272e',
-    padding: 12,
-    borderRadius: 12,
+    gap: 12,
   },
   goalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    gap: 12,
   },
-  goalText: {
+  goalCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Theme.dark.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalCheck: {
     color: '#ffffff',
     fontSize: 14,
-    marginLeft: 8,
+    fontWeight: '800',
+  },
+  goalText: {
+    color: Theme.dark.textPrimary,
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
   },
   errorText: {
     color: '#ef4444',

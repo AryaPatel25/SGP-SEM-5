@@ -1,5 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import GlassCard from "../../components/ui/GlassCard";
+import { Theme } from "../../constants/Colors";
 
 const DomainCard = React.memo(({ domain, onPress, style }) => {
   const handlePress = () => {
@@ -7,58 +9,57 @@ const DomainCard = React.memo(({ domain, onPress, style }) => {
   };
 
   return (
-    <TouchableOpacity style={[styles.domainCard, style]} onPress={handlePress}>
-      <Text style={styles.domainTitle}>{domain.name}</Text>
-      <Text style={styles.domainDescription} numberOfLines={2}>
-        {domain.description || "No description available"}
-      </Text>
-      <View style={styles.domainMeta}>
-        <Text style={styles.domainQuestionCount}>
-          {domain.questionCount || 0} questions
+    <TouchableOpacity style={style} onPress={handlePress} activeOpacity={0.8}>
+      <GlassCard style={styles.domainCard}>
+        <Text 
+          style={styles.domainTitle}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {domain.name}
         </Text>
-      </View>
+        <Text style={styles.domainDescription} numberOfLines={2}>
+          {domain.description || "No description available"}
+        </Text>
+        <View style={styles.domainMeta}>
+          <Text style={styles.domainQuestionCount}>
+            {domain.questionCount || 0} questions
+          </Text>
+        </View>
+      </GlassCard>
     </TouchableOpacity>
   );
 });
 
 const styles = StyleSheet.create({
   domainCard: {
-    flex: 1,
-    minWidth: 150,
-    margin: 10,
-    backgroundColor: "#23272e",
-    padding: 24,
-    borderRadius: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 5,
-    minHeight: 140,
+    padding: 20,
+    minHeight: 160,
     alignItems: "flex-start",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#334155",
+    justifyContent: "space-between",
   },
   domainTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#f1f5f9",
-    marginBottom: 8,
-    letterSpacing: 0.5,
+    fontWeight: "700",
+    color: Theme.dark.textPrimary,
+    marginBottom: 10,
+    letterSpacing: 0.3,
+    lineHeight: 24,
   },
   domainDescription: {
     fontSize: 14,
-    color: "#a3a3a3",
+    color: Theme.dark.textSecondary,
     lineHeight: 20,
-    marginBottom: 10,
+    marginBottom: 12,
+    flex: 1,
   },
   domainMeta: {
-    marginTop: 6,
+    marginTop: 4,
   },
   domainQuestionCount: {
     fontSize: 13,
-    color: "#38bdf8",
-    fontWeight: "600",
+    color: Theme.dark.accent,
+    fontWeight: "700",
   },
 });
 

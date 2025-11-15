@@ -261,8 +261,14 @@ export class DashboardService {
       
       if (progressSnapshot.empty) {
         // Create new progress record
+        // Sanitize domain name for document ID (remove spaces, special chars, slashes)
+        const sanitizedDomainId = String(interviewData.domain || 'unknown')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+        
         const newProgress = {
-          id: `progress-${interviewData.domain.toLowerCase()}`,
+          id: `progress-${sanitizedDomainId}`,
           userId: userId,
           domain: interviewData.domain,
           totalQuestions: interviewData.totalQuestions,

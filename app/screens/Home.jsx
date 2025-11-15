@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
@@ -8,8 +9,11 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from "react-native";
+import GlassCard from "../../components/ui/GlassCard";
+import { Theme } from "../../constants/Colors";
 import { useAuth } from "../../src/context/AuthContext";
 
 export default function Home() {
@@ -59,97 +63,148 @@ export default function Home() {
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>
-            Welcome
-            {user
-              ? `, ${
-                  user.fullName ||
-                  (user.email ? user.email.split("@")[0] : "User")
-                }`
-              : ""}{" "}
-            👋
-          </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.logoutButton,
-              pressed && styles.logoutButtonPressed,
-            ]}
-            onPress={handleLogout}
-          >
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.title}>Start a New Interview</Text>
-          <Text style={styles.subtitle}>
-            Choose your domain and start practicing with real-time feedback.
-          </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => router.push("/(tabs)/interview")}
-          >
-            <LinearGradient
-              colors={["#8b5cf6", "#3b82f6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.buttonGradient}
+        {/* Header with Gradient */}
+        <LinearGradient
+          colors={[Theme.dark.gradient.primary[0], Theme.dark.gradient.primary[1]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>
+                Welcome{user?.fullName?.trim() ? `, ${user.fullName.trim()}` : user?.email ? `, ${user.email.split("@")[0]}` : ""} 👋
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                Ready to ace your next interview?
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
             >
-              <Text style={styles.buttonText}>Start Interview</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
+              <Ionicons name="log-out-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
-        <View style={styles.card}>
-          <Text style={styles.title}>Past Interviews</Text>
-          <Text style={styles.subtitle}>
-            Review your performance and track your progress.
-          </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => router.push("/(tabs)/dashboard")}
-          >
-            <LinearGradient
-              colors={["#8b5cf6", "#3b82f6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.buttonGradient}
+        {/* Quick Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="chatbubbles" size={28} color={Theme.dark.accent} />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.title}>Start a New Interview</Text>
+                <Text style={styles.subtitle}>
+                  Choose your domain and start practicing with real-time feedback.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push("/(tabs)/interview")}
             >
-              <Text style={styles.buttonText}>View Progress</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
+              <LinearGradient
+                colors={Theme.dark.gradient.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Start Interview</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </GlassCard>
 
-        <View style={styles.card}>
-          <Text style={styles.title}>Tips & Resources</Text>
-          <Text style={styles.subtitle}>
-            Improve your answers with voice clarity, confidence, and content
-            quality.
-          </Text>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-            <LinearGradient
-              colors={["#8b5cf6", "#3b82f6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.buttonGradient}
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="stats-chart" size={28} color={Theme.dark.accent} />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.title}>View Progress</Text>
+                <Text style={styles.subtitle}>
+                  Review your performance and track your progress over time.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push("/(tabs)/dashboard")}
             >
-              <Text style={styles.buttonText}>View Tips</Text>
-            </LinearGradient>
-          </Pressable>
+              <LinearGradient
+                colors={Theme.dark.gradient.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>View Dashboard</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </GlassCard>
+
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="bulb" size={28} color={Theme.dark.accent} />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.title}>Tips & Resources</Text>
+                <Text style={styles.subtitle}>
+                  Improve your answers with expert tips and valuable resources.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push('/(tabs)/tips-resources')}
+            >
+              <LinearGradient
+                colors={Theme.dark.gradient.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>View Tips</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </GlassCard>
+
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="videocam" size={28} color={Theme.dark.accent} />
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.title}>Mock Interview</Text>
+                <Text style={styles.subtitle}>
+                  Practice with video recording and get AI-powered feedback.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push('/(tabs)/mock-interview')}
+            >
+              <LinearGradient
+                colors={Theme.dark.gradient.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Start Mock Interview</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </GlassCard>
         </View>
       </ScrollView>
     </View>
@@ -159,114 +214,112 @@ export default function Home() {
 const styles = StyleSheet.create({
   pageContainer: {
     flex: 1,
-    backgroundColor: "#0f0f12", // fallback
+    backgroundColor: Theme.dark.background,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 32,
+    padding: 24,
+    paddingTop: 60,
     marginBottom: 24,
   },
-  pageTitle: {
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  headerTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.5,
-    flex: 1,
-  },
-  logoutButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: "rgba(36,36,40,0.7)",
-    borderWidth: 1,
-    borderColor: "#27272a",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  logoutButtonPressed: {
-    backgroundColor: "#ef4444",
-  },
-  logoutButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  card: {
-    backgroundColor: "rgba(36,36,40,0.85)",
-    borderRadius: 22,
-    padding: 22,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#27272a",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  title: {
-    fontSize: 22,
-    color: "#fff",
-    fontWeight: "800",
+    color: "#ffffff",
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 15,
-    color: "#a1a1aa",
+  headerSubtitle: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.9)",
+  },
+  logoutButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  section: {
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: Theme.dark.textPrimary,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  card: {
+    marginBottom: 16,
+    padding: 20,
+  },
+  cardHeader: {
+    flexDirection: "row",
     marginBottom: 16,
   },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Theme.dark.surface,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  cardTextContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Theme.dark.textPrimary,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Theme.dark.textSecondary,
+    lineHeight: 20,
+  },
   button: {
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: "hidden",
-    marginTop: 6,
   },
   buttonGradient: {
     paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: "row",
     alignItems: "center",
-  },
-  buttonPressed: {
-    opacity: 0.8,
-  },
-  outlineButton: {
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#60a5fa",
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 6,
-  },
-  outlineButtonPressed: {
-    backgroundColor: "#18181b",
-    borderColor: "#3b82f6",
+    justifyContent: "center",
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
   },
-  buttonTextAlt: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#60a5fa",
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0f0f12",
+    backgroundColor: Theme.dark.background,
   },
   loadingText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#fff",
+    color: Theme.dark.textPrimary,
     marginTop: 12,
   },
 });

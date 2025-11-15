@@ -64,6 +64,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="tips-resources"
+        options={{
+          // Hide from the tab bar but keep it routable
+          href: null,
+          title: 'Tips & Resources',
+        }}
+      />
+      <Tabs.Screen
         name="custom-quiz"
         options={{
           // Hide from the tab bar but keep it routable
